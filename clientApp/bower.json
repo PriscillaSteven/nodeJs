@@ -1,0 +1,28 @@
+{
+  "name": "cre",
+  "version": "0.0.1",
+  "authors": [
+    "Lu, Yu <luyu@fluyu.com>"
+  ],
+  "description": "Central Remoting Environment",
+  "license": "private",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "angular-ui/angular#~1.2.3",
+    "angular-ui-ace": "#bower",
+    "angular-bootstrap": "0.9.0",
+    "bootstrap-css": "3.0.0",
+    "socket.io-client": "0.9.16",
+    "angular-ui-utils": "0.1.0",
+    "eventEmitter": "4.2.7",
+    "angular-animate": "1.2.10",
+    "json3": "3.3.0"
+  }
+}

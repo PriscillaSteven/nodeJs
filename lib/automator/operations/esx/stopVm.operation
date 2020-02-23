@@ -1,0 +1,52 @@
+// Parameters: {
+//     vm: string,
+// }
+
+var expects = [
+    {
+        name: 'List all VMs',
+        cmd: function() {
+        	if(typeof vm == "undefined") {
+        		return "echo 'Invalid parameters, vm required.'; exit 1"
+        	}
+            return 'vim-cmd vmsvc/getallvms';
+        },
+        expect: function(line) {
+		if(typeof targetvm == "undefined") {        		
+	            var vmmatch = line.match(/^(\d+)\s+([^\s]+)\s+(\[.*\] [^\s]+)\s+([^\s]+)\s+([^\s]+)\s{2}(.+)/)
+	            if(vmmatch && vmmatch[2] == vm) {
+	            	targetvm = {
+	            		vmid: vmmatch[1] ? vmmatch[1].trim() : '',
+	            		name: vmmatch[2] ? vmmatch[2].trim() : '',
+	            		file: vmmatch[3] ? vmmatch[3].trim() : '',
+	            		guest: vmmatch[4] ? vmmatch[4].trim() : '',
+	            		version: vmmatch[5] ? vmmatch[5].trim() : '',
+	            		anno: vmmatch[6] ? vmmatch[6].trim() : '',
+	            	};
+	            }
+        	}
+        },
+        next: "Poweron VM",
+        critical: true
+    },
+    {
+        name: 'Poweron VM',
+        cmd: function() {
+            return '[ -n "`vim-cmd vmsvc/power.getstate ' + targetvm.vmid + ' | grep -e on`" ] ' +
+            '&& vim-cmd vmsvc/power.off ' + targetvm.vmid + '; ' +
+            'vim-cmd vmsvc/power.getstate ' + targetvm.vmid;
+        },
+        expect: function(line) {
+            if(line.match(/Powered off/))
+                this.jobSuccess = true;
+        },
+        judgeSuccess: function(exitStatus) {
+            if(this.jobSuccess) return true;
+            else return false;
+        },
+        critical: true
+    }
+];
+
+declareOperation(expects);
+

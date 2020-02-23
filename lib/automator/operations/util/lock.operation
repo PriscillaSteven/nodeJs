@@ -1,0 +1,41 @@
+declareOperation('object', function(target, param, onFinish) {
+    var waitInterval = 5000;    
+    var waitCount = 3600 * 1000 / waitInterval;
+    var id = target.configName;
+    if(!id) id = target.host;
+    if(!id) id = Util.inspect(target);
+    
+    var tryLock = function() {
+        //update("[LOCK] getting " + id + '\n');
+        Util.locks.get(id, function(err, value) {
+            if(err) {
+                passed = false;
+                update("[LOCK] failed: " + id + "\n" + err.stack);
+                onFinish();
+            }
+            //update("[LOCK] got " + id + '\n');
+	        if(value && value.status && (value.status == 'locked')) {
+                if(waitCount > 0) {
+                    waitCount--;
+                    //update("[LOCK] waiting " + waitInterval + "ms, count down " + waitCount + "\n");
+                    Util.later(tryLock, waitInterval);
+                } else {
+                    passed = false;
+                    update("[LOCK] waited too long for " + id + "\n");
+                    onFinish();
+                }
+            } else {
+                //update("[LOCK] setting " + id + '\n');
+                Util.locks.set(id, { status: 'locked', date: Util.now.toJSON() }, function(err) {
+                    if(err) {
+                        passed = false;
+                        update("[LOCK] failed to set lock: " + id + "\n" + err.stack + "\n");
+                    } else passed = true;
+                    //update("[LOCK] locked " + id + '\n');
+                    onFinish();
+                });
+            }
+        });
+    };
+    Util.later(tryLock);
+});

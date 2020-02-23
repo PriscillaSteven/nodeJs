@@ -1,0 +1,111 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var serverHost = 'mabji01-sl10sp4x86-2',
+    clientHost = 'luvyu01-p2v',
+    prepareFile = [
+        'umount -f /boot ; echo $?',
+        'fsck.ext2 -y /dev/sda1 ; echo $?',
+        'mount /boot',
+        'umount -f /home ; echo $?',
+        'fsck.ext2 -y /dev/mapper/VolGroup02-LogVol00 ; echo $?',
+        'mount /home',
+        'umount -f /local ; echo $?',
+        'fsck.reiserfs -y /dev/mapper/VolGroup01-LogVol01 ; echo $?',
+        'mount /local',
+        'time dd if=/dev/urandom of=/tmp/restvol_file bs=1M count=250',
+        { cmd: 'cp -p /tmp/restvol_file /boot/restvol_file', async: true },
+        { cmd: 'cp -p /tmp/restvol_file /home/restvol_file', async: true },
+        { cmd: 'cp -p /tmp/restvol_file /local/restvol_file', async: true },
+    ],
+    changeFile = [
+        'time dd if=/dev/urandom of=/boot/restvol_file bs=1M count=10',
+        'time dd if=/dev/urandom of=/home/restvol_file bs=1M count=10',
+        'time dd if=/dev/urandom of=/local/restvol_file bs=1M count=10',
+    ],
+    mountVols = [
+        'mount /boot',    
+        'mount /home',    
+        'mount /local',  
+    ],
+    umountVols = [
+        'umount /boot',    
+        'umount /home',    
+        'umount /local',  
+    ],
+    compareFileList = [
+        '/tmp/restvol_file',
+        '/boot/restvol_file',
+        '/home/restvol_file',
+        '/local/restvol_file',
+    ],
+    vol = function(v) {
+        return {
+            sessionsLocation: '/var/BD', 
+            origHost: clientHost, 
+            origVol: v, 
+            password: 'cnbjrdqa2#',
+        }
+    },
+    rconfig = {
+        jobtype: 'restvol-sync',
+        fetchScript: 'https://' + serverHost + ':8014/d2drestorevol',
+        volumes: [ 
+            vol('/dev/sda1'),
+            vol('/dev/mapper/VolGroup02-LogVol00'),
+            vol('/dev/mapper/VolGroup01-LogVol01')
+        ]
+    },
+    bscript = {
+        jobname: 'RestVol Auto: Backup',
+        targethost: clientHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: '/var/BD',
+        encryptalgo: 'AES256',
+        encryptpasswd: 'cnbjrdqa2#',
+        compression: 1,
+        excludevolumes: '/usr',
+    },
+    rscript = {
+        jobname: 'FLR Auto: Restore',
+        targethost: clientHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: clientHost + ':/var/BD',
+        encryptalgo: 'AES256',
+        encryptpasswd: 'cnbjrdqa2#',
+        compression: '1',
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        restorefile: [ '/home/restvol_file', '/local/restvol_file', '/boot/restvol_file'],
+    },
+    server = $({ host: serverHost, username: 'root', password: 'caworld1!' }),
+    client = $({ host: clientHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+///////////////////////RUN CASE///////////////////////
+//////////////////////////////////////////////////////
+client.exec({ cmds: ['cp /tmp/restvol_file /var/BD/restvol_file_before_verifyl'] })
+      .exec({ cmds: prepareFile })
+      .exec({ cmds: ['sync'] })
+      .exec({ cmds: umountVols })
+      .exec({ cmds: ['sync'] })
+      .exec({ cmds: mountVols })
+      .exec({ cmds: ['sync'] })
+      .stat({ files: compareFileList, to: 'Compare' });
+compare(compareFileList.map(function(f) { return [clientHost, f]; }));
+server.backup({ incremental: bscript });
+client.exec({ cmds: changeFile });
+server.restore({ file: rscript });
+client.stat({ files: compareFileList, to: 'Compare' });
+compare(compareFileList.map(function(f) { return [clientHost, f]; }));
+client.exec({ cmds: changeFile })
+      .exec({ cmds: umountVols })
+      .restore({ vol: rconfig })
+      .exec({ cmds: mountVols })
+      .stat({ files: compareFileList, to: 'Compare' });
+compare(compareFileList.map(function(f) { return [clientHost, f]; }));
+server.restore({ file: rscript });
+client.stat({ files: compareFileList, to: 'Compare' });
+compare(compareFileList.map(function(f) { return [clientHost, f]; }));

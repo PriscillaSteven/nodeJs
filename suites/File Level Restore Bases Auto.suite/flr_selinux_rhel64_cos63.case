@@ -1,0 +1,48 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origFile = '/tmp/orig_file_selinux',
+    nfsPath = 'luvyu01-nfsvr:/ns',
+    serverHost = 'luvyu01-rhel64',
+    clientHost = 'luvyu01-cos63',
+    bscript = {
+        jobname: 'FLR Auto: Backup session',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    rscript = function(targetHost) {
+        return {
+            jobname: 'FLR Auto: Restore from session',
+            jobtype: 23,
+            targethost: targetHost,
+            sessionhost: serverHost,
+            targetuser: 'root',
+            targetpasswd: 'cnbjrdqa2#',
+            sessionlocation: nfsPath,
+            compression: '1',
+            restoretargetdir: '/tmp',
+            restoretooriginal: (serverHost !== targetHost) ? '0' : '1',
+            fileoption: '1', // 1: overwrite; 2: duplicate; 3: skip; 
+            stripoption: 1,
+            restorefile: origFile
+        }
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' }),
+    client = $({ host: clientHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+/////////////////////////CASE/////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: ['time dd if=/dev/urandom of="' + origFile + '" bs=1M count=100'] })
+      .backup({ incremental: bscript })
+      .restore({ file: rscript(clientHost) })
+      .async
+      .stat({ file: origFile, to: 'Compare'});
+client.async
+      .stat({ file: origFile, to: 'Compare' });
+wait();
+compare([ [serverHost, origFile], [clientHost, origFile] ]);

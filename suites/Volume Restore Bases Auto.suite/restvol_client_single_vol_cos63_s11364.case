@@ -1,0 +1,52 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var nfsPath = '155.35.103.143:/NFS',
+    serverHost = 'luvyu01-cos63',
+    clientHost = 'luvyu01-s11364',
+    prepareFile = [
+        'mount /data_sdb5 ; rc=$?; [  $rc -eq 0 -o $rc -eq 32 ] && echo OK',
+        'time dd if=/dev/urandom of=/tmp/restvol_file bs=1M count=100',
+        'cp -p /tmp/restvol_file /data_sdb5/restvol_file',
+    ],
+    changeFile = [
+        'time dd if=/dev/urandom of=/data_sdb5/restvol_file bs=1M count=100',
+        'umount /data_sdb5',    
+    ],
+    rconfig = {
+        fetchScript: 'https://' + serverHost + ':8014/d2drestorevol',
+        jobtype: 'restvol-sync', //default: monitor, valid options are: 'monitor', 'restvol-sync' and 'restvol-async'.
+        volumes: [
+            {
+                sessionsLocation: '/CRE_ROOT', 
+                origHost: clientHost, // defaults to the server itself
+                //session: '321', // defaults to the newest
+                origVol: '/dev/sdb5', 
+                destVol: '/dev/sdb5', 
+                //mount: 'mount_path2',// omit this to do driver-less restore
+            },
+        ]
+    },
+    bscript = {
+        jobname: 'RestVol Auto: Backup',
+        targethost: clientHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' }),
+    client = $({ host: clientHost, username: 'root', password: 'cnbjrdqa2#' });
+
+
+//////////////////////////////////////////////////////
+///////////////////////RUN CASE///////////////////////
+//////////////////////////////////////////////////////
+client.exec({ cmds: prepareFile });
+server.backup({ incremental: bscript });
+client.exec({ cmds: changeFile })
+      .restore({ vol: rconfig })
+      .exec({ cmds: [ 'mount /data_sdb5' ] })
+      .stat({ files: ['/tmp/restvol_file', '/data_sdb5/restvol_file'], to: 'Compare' });
+compare([[clientHost, '/tmp/restvol_file'], [clientHost, '/data_sdb5/restvol_file']]);

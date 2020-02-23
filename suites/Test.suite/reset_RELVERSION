@@ -1,0 +1,14 @@
+targets = [
+    { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-rhel64', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-cos63', username: 'root', password: 'cnbjrdqa2#' }
+];
+
+declare_function('reset_rel', [
+    { cmd: 'echo "2000.1" > /opt/CA/d2dserver/RELVERSION' },
+]);
+
+targets.reset_rel(targets);

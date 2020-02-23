@@ -1,0 +1,101 @@
+// Parameters: {
+//     files: ['/path/to/file', ...],
+//   OR
+//     file: '/path/to/file',
+//     to: 'Stat'  // This is the param name to store the stat results, default: 'Stat' 
+// }
+
+expects = [
+    {
+        cmd: '',
+        next: function() {
+            if(typeof file === 'string') files = [file];
+            if(typeof files !== 'undefined' && Array.isArray(files))
+                return (this.index + 1);
+            else return -1;
+        }
+    },
+    {
+        name: 'Stat attr',
+        cmd: function() { 
+            if(typeof to === 'undefined') to = 'Stat';
+            if(typeof to !== 'string')
+                return 'echo "Invalid result root." ; exit 1'
+            if((typeof files === 'undefined') || 
+               (!Array.isArray(files)) ||
+               (files.length === 0))
+                return 'echo "No files to stat." ; exit 1';
+            if(typeof currFileIdx != 'number') currFileIdx = 0;
+            var targetFile = files[currFileIdx];            
+            if(typeof targetFile === 'string') {                
+                fileAttrs = {};
+                if(!CASE.get(to))
+                    CASE.set(to, {});
+                if(!CASE.get(to)[target])
+                    CASE.get(to)[target] = {};
+                CASE.get(to)[target][targetFile] = fileAttrs;
+                return 'stat -L -c "' + 
+                       'access: %A\n' + 
+                       'mode: %f\n' + 
+                       'type: %F\n' + 
+                       'group: %g\n' + 
+                       'size: %s\n' + 
+                       'user: %u\n' + 
+                       'last_modify: %Y" "' + 
+                       targetFile + '"';
+            } else return 'echo "String expected as file path." ; exit 1';
+        },
+        expect: function(line) {
+            var attr = line.split(':');
+            if(attr && (attr.length == 2))
+                fileAttrs[attr[0]] = attr[1].trim();
+        },
+        critical: true,
+	next: 'Calc file MD5'
+    },
+    {
+        name: 'Stat selinux attr',
+        cmd: function() {  
+            return 'stat -L -c "selinux: %C" "' + 
+                    files[currFileIdx] + '"'; 
+        },
+        expect: function(line) {
+            var attr = line.split(':');
+            if(attr && (attr.length == 2))
+                fileAttrs[attr[0]] = attr[1].trim();
+        },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus == 0) return true;
+            else {
+                fileAttrs['selinux'] = null;
+                return false;
+            }
+        },
+        critical: false
+    },
+    {
+        name: 'Calc file MD5',
+        cmd: function() { 
+            return 'md5sum -b "' + files[currFileIdx] + '" | cut -d" " -f 1'; },
+        expect: function(line) { 
+            fileAttrs['md5sum'] = line.trim();
+        },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus == 0) return true;
+            else {
+                fileAttrs['md5sum'] = null;
+                return false;
+            }
+        },
+        timeout: 3600,
+        next: function() {
+            currFileIdx += 1;
+            if(currFileIdx >= files.length)
+                return (this.index + 1);
+            else return 'Stat attr';
+        },
+        critical: true,
+    }
+];
+
+declareOperation(expects);

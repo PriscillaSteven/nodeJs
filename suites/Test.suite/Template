@@ -1,0 +1,52 @@
+targets = [
+    { addr: 'luvyu01-rhel63', username: 'root', password: '123#' },
+    { addr: 'luvyu01-rhel59', username: 'root', password: '123#' }
+];
+
+expects = [
+	{ 
+		name: 'example1',
+		cmd: 'ifconfig',
+		expect: function(line, target) { process.stdout.write(str); },
+		judge_success: function(target, target) { return (target == 0) ; },
+		critical: false,
+		timeout: 10,
+		async: true,
+        pty_col: 100,
+        pty_row: 40
+	},
+	{ 
+		name: 'test1',
+		cmd: 'ifconfig',
+		monitor: function(new_data, target) { process.stdout.write(str); },
+		judge_success: function(target, target) { return (target == 0) ; },
+		critical: true,
+		timeout: 600,
+		async: false,
+		next: 'test_step2',
+		//next: 2,
+		//next: function(current_index, target) {
+		//	return 'test_step2';
+		//	return 2;
+		//	return current_index + 1;
+		//},
+	},
+    {
+		cmd: function(target) { return 'ls -lth'; },
+		expect: [
+			['total',''],
+			['root','']
+		]
+	},
+    {
+		name: 'test_step2',
+		cmd: 'echo Done',
+		expect: [
+			{ waitFor: 'Done', response: ''},
+			{ waitFor: 'something', response: 'ok'}
+		]
+	},
+    { cmd: 'exit' }
+];
+
+quiet = false;

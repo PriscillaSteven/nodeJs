@@ -1,0 +1,27 @@
+//    { host: 'luvyu01-cos63', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-rhel64', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'mabji01-sl10sp4x86-2', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-oc', username: 'root', password: 'cnbjrdqa2#' } ,
+
+var build = {
+        buildLocation: 'wanzh02-bld:/build/OolongBeta',
+        //cleanInstall:  true,
+        //targetVersion: null,
+    },
+    server1 = $({ host: 'mabji01-sl10sp4x86-2', username: 'root', password: 'caworld1!' });
+    server2 = $({ host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' });
+
+server1.async.upgrade(build);
+server2.async.upgrade(build);
+wait();
+server1.async.nodes({ add: [
+    { host: 'mabji01-sl10sp4x86-2', password: 'caworld1!', force: true },
+    { host: 'luvyu01-p2v', password: 'cnbjrdqa2#', force: true }
+]});
+server2.async.nodes({ add: [
+    { host: 'luvyu01-s10486', password: 'cnbjrdqa2#', force: true },
+]});

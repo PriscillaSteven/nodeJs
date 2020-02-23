@@ -1,0 +1,18 @@
+//    { host: 'luvyu01-cos63', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-rhel64', username: 'root', password: 'cnbjrdqa2#' } ,
+//    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+
+var build = {
+        buildLocation: 'wanzh02-bld:/build/OolongBeta',
+        //cleanInstall:  true,
+        //targetVersion: null,
+    },
+    server = $({ host: 'luvyu01-cos63', username: 'root', password: 'cnbjrdqa2#' });
+
+server.upgrade(build).nodes({ add: [
+    { host: 'luvyu01-cos63', password: 'cnbjrdqa2#' },
+    { host: 'luvyu01-s11364', password: 'cnbjrdqa2#', force: true },
+]});

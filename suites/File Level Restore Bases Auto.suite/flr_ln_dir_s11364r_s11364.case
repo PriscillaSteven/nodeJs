@@ -1,0 +1,63 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origDir = '/tmp/FLRAuto',
+    origDirSub = origDir + '/sub',
+    origFile1 = origDir + '/file1',
+    origFile2 = origDirSub + '/file2',
+    origLink1 = origDirSub + '/link1',
+    origLink2 = origDir + '/link2';
+
+var serverHost = 'luvyu01-s11364r',
+    clientHost = 'luvyu01-s11364',
+    nfsPath = 'luvyu01-nfsvr:/ns',
+    prepareFile = [
+        'rm -rf "' + origDir + '" && exit 0',
+        'mkdir -p "' + origDirSub + '"',
+        'time dd if=/dev/urandom of="' + origFile1 + '" bs=1M count=100',
+        'time dd if=/dev/urandom of="' + origFile2 + '" bs=1M count=100',
+        'ln "' + origFile1 + '" "' + origLink1 + '"',
+        'ln -s "' + origFile2 + '" "' + origLink2 + '"',
+    ],
+    bscript = {
+        jobname: 'FLR Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    rscript = function(targetHost) {
+        return {
+            jobname: 'FLR Auto: Restore from session',
+            jobtype: 23,
+            targethost: targetHost,
+            sessionhost: serverHost,
+            targetuser: 'root',
+            targetpasswd: 'cnbjrdqa2#',
+            sessionlocation: nfsPath,
+            compression: '1',
+            restoretargetdir: '/tmp',
+            restoretooriginal: (serverHost !== targetHost) ? '0' : '1',
+            fileoption: '1', // 1: overwrite; 2: duplicate; 3: skip; 
+            stripoption: 1,
+            restorefile: origDir
+        }
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' }),
+    client = $({ host: clientHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+/////////////////////////CASE/////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFile })
+      .backup({ incremental: bscript })
+      .restore({ files: rscript(clientHost) })
+      .async
+      .stat({ files: [origFile1, origLink1, origFile2, origLink2], to: 'Compare' });
+client.async
+      .stat({ files: [origFile1, origLink1, origFile2, origLink2], to: 'Compare' });
+wait();
+compare([ [serverHost, origFile1], [serverHost, origLink1], [clientHost, origFile1], [clientHost, origLink1] ]);
+compare([ [serverHost, origFile2], [serverHost, origLink2], [clientHost, origFile2], [clientHost, origLink2] ]);

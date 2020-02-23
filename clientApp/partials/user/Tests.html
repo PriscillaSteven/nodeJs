@@ -1,0 +1,109 @@
+<div ng-controller="creUserTestDefinitions">
+    <cre-search-list items="td in testDefinitions" empty-message="No Test Definitions Found"
+         filter="{ name: { header: 'Filter Test', placeholder: 'Name' } }"
+         actions="[{name: 'Create New Test Definition', action: 'popupCreateTest()'}]">
+        <cre-dynamic-list items="(suiteName, suite) in td.suites"
+            entry-remove="popupRemoveSuiteFromTest(td, suiteName)"
+            entry-add="popupAddSuiteToTest(td, $index)" list-style='panel'>
+            <div class="heading-transclude">
+                <span class="h5">{{td.name}}</span>
+                <div class="btn-group btn-group pull-right">
+                    <button class="btn btn-xs btn-primary" ng-click='tdActions.launch(td.name)'>
+                        &nbsp;&nbsp;Lanuch&nbsp;&nbsp;
+                        <i class="glyphicon glyphicon-send"></i>
+                    </button>
+                </div>
+                <span class="pull-right">&nbsp;&nbsp;</span>
+                <div class="btn-group btn-group-xs pull-right">
+                    <!-- <button class="btn btn-xs disabled">
+                        &nbsp;Last modify: {{td.modification | date:'yyyy-MM-dd HH:mm:ss.sss'}}
+                    </button> -->
+                    <button class="btn btn-xs" title='Click to set trigger' 
+                        ng-click='popupSetTrigger(td.name)' ng-class="{
+                            'btn-success': !!td.trigger.trim(),
+                            'btn-warning': !td.trigger.trim()
+                        }">
+                        &nbsp;{{td.trigger.trim() ? ('Trigger: ' + td.trigger) : 'No Trigger'}}
+                    </button>
+                    <button class="btn btn-xs" title='Click to set trigger'
+                        ng-click='tdActions.switchUpdateProtal(td.name)' ng-class="{
+                            'btn-success': !!td.config.autoUpdateProtal,
+                            'btn-warning': !td.config.autoUpdateProtal
+                        }">
+                        {{td.config.autoUpdateProtal ? "Will" : "Won't"}} update protal
+                    </button>
+                    <button class="btn btn-xs btn-info" ng-click="popupCopyTest(td)">
+                        &nbsp;&nbsp;Copy&nbsp;&nbsp;
+                        <i class="glyphicon glyphicon-retweet"></i>
+                        &nbsp;&nbsp;
+                    </button>
+                    <button class="btn btn-xs btn-info" title='Click to delete' ng-click='popupRemoveTest(td.name)'>
+                        &nbsp;&nbsp;Delete&nbsp;&nbsp;
+                        <i class="glyphicon glyphicon-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="body-transclude">
+                <big>Suites in below list will be run <strong>concurrently</strong>.</big>
+            </div>
+            <cre-dynamic-list items="case_ in suite.cases track by $index"
+                entry-remove="popupRemoveCaseFromSuite(td, suiteName, $index)"
+                entry-add="popupAddCaseToSuite(td, suiteName, $index)" list-style='panel'>     
+                <span class="h5 heading-transclude">{{suiteName}}</span> 
+
+                <div class="btn-group pull-right heading-transclude">               
+                    <button type="button" title="Click to switch state" 
+                        class="btn btn-xs" ng-class="{
+                            'btn-success': suite.enabled,
+                            'btn-warning': !suite.enabled
+                        }" ng-click='tdActions.switchSuiteState(td.name, suiteName, !suite.enabled)'>
+                        &nbsp;&nbsp;{{suite.enabled ? 'Enabled' : 'Disabled'}}&nbsp;&nbsp;
+                        <i class="glyphicon" ng-class="{
+                            'glyphicon-ok': suite.enabled,
+                            'glyphicon-remove': !suite.enabled
+                        }"></i>
+                    </button>
+                    <button class="btn btn-xs btn-info"
+                        ng-click='popupCopySuiteOfTest(td, suiteName)'>
+                        &nbsp;&nbsp;Copy&nbsp;&nbsp;
+                        <i class="glyphicon glyphicon-retweet"></i>
+                        &nbsp;&nbsp;
+                    </button> 
+                </div>
+                <span class="body-transclude">
+                    Cases in below list will be run <strong>in order</strong>.
+                </span>
+                <div>
+                    <cre-dynamic-list items="target in expandTargets(case_)"
+                        entry-remove="popupRemoveTargetFromCase(td, suiteName, case_, $index)"
+                        entry-add="popupAddTargetToCase(td, suiteName, case_)">
+                        <div class='heading-transclude'>
+                            <span class="h5">{{case_.name}}</span>  
+                            <div class="btn-group pull-right">          
+                                <button type="button" title="Click to switch state" 
+                                    class="btn btn-xs" ng-class="{
+                                        'btn-success': case_.enabled,
+                                        'btn-warning': !case_.enabled
+                                    }" ng-click='tdActions.switchCaseState(td.name, suiteName, case_.name, $index, !case_.enabled)'>
+                                    &nbsp;&nbsp;{{case_.enabled ? 'Enabled' : 'Disabled'}}&nbsp;&nbsp;
+                                    <i class="glyphicon" ng-class="{
+                                        'glyphicon-ok': case_.enabled,
+                                        'glyphicon-remove': !case_.enabled
+                                    }"></i>
+                                </button>
+                                <button type="button" class="btn btn-xs btn-info"
+                                    ng-click='popupEditCase(td, suiteName, $index, case_)'>
+                                    &nbsp;&nbsp;Edit Case&nbsp;&nbsp;
+                                    <i class="glyphicon glyphicon-pencil"></i>
+                                </button>
+                            </div>                            
+                        </div>
+                        <div>
+                            <strong><em>{{target.varName}}</em></strong> will be available in case script representing target <strong><em>{{target.configName}}</em></strong>
+                        </div>
+                    </cre-dynamic-list> 
+                </div>
+            </cre-dynamic-list>        
+        </cre-dynamic-list>
+    </cre-search-list> 
+</div>

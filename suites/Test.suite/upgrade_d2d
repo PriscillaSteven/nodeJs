@@ -1,0 +1,16 @@
+context = {
+    //d2d_build_location: 'wanzh02-bld:/build/r16.5sp1',
+    d2d_build_location: 'wanzh02-bld:/build/Oolong',
+    complete_reinstall:  false,
+    //target_version: null,
+};
+
+targets = [
+    { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' }
+];
+
+targets.upgradeD2D(context);

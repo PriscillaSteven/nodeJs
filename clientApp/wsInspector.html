@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Webservice Inspector</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creSearchList.js'></script>
+        <script src='/public/creDynamicList.js'></script>
+        <script src='/public/creNotifier.js'></script>
+        <script src='/public/wsInspectorApp.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <!--[if IE]>
+        <script>
+          document.createElement('cre-dynamic-list');
+          document.createElement('cre-search-list');
+          document.createElement('cre-terminal');
+          document.createElement('cre-ssh-step-detial');
+        </script>
+        <![endif]-->
+    </head>
+    <body>            
+        <div id="ng-app" ng-app="creWsInspectorApp" ng-controller="creWsInspectorMain" class="container">
+            <h1>Webservice Inspector</h1>
+            <hr>
+            <div class="row" ng-show='actionText === "Create Service"'>
+                <div class='form-group'>
+                    <label for="wsdlUrl" class="col-md-1 control-label">WSDL Url</label>
+                    <div class="col-md-11">
+                        <input ng-model='wsdlDef.url' type="text" id="wsdlUrl" class="form-control" placeholder='Adress' />
+                    </div>
+                </div>
+                <div class='col-md-12 text-center' style="margin: 3px"><span>OR</span></div>
+                <div class='form-group'>
+                    <label for="wsdlContent" class="col-md-1 control-label">WSDL</label>
+                    <div class="col-md-11">
+                        <textarea ng-model='wsdlDef.content' type="text" id="wsdlContent" class="form-control" placeholder='XML Content' rows=5></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="row" style="margin-top: 15px">
+                <div class='col-md-12 text-center'><span><button class="btn btn-default" ng-click="wsdlAction()">{{actionText}}</button></span></div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-12" ng-repeat="(svcName, svc) in services">
+                    <cre-dynamic-list items="(portName, port) in svc" initial-open='true'>             
+                        <span class="heading-transclude"><strong>Service:</strong> {{svcName}}</span> 
+                        <cre-dynamic-list initial-open='true'>             
+                            <span class="heading-transclude"><strong>Port:</strong> {{portName}}</span>    
+                            <div class="body-transclude">
+                                <cre-search-list items="method in port" empty-message="No Methods Found"
+                                    filter="{ name: { header: 'Filter Methods', placeholder: 'Name' } }">
+                                    <cre-dynamic-list initial-open='true'>
+                                        <span class="heading-transclude"><strong>Method:</strong> {{method.name}}</span>
+                                        <span class="heading-transclude pull-right">
+                                            <button ng-click="popupMethodDetail(svcName, portName, method.name)"
+                                            class="btn btn-xs btn-default" >Detail</button>
+                                        </span>
+                                    </cre-dynamic-list>
+                                </cre-search-list> 
+                            </div>
+                        </cre-dynamic-list>                                  
+                    </cre-dynamic-list>                                  
+                </div>
+            </div>                    
+            <cre-notifier info-event="notifyInfo" error-event="notifyError">
+            </cre-notifier>
+        </div> 
+    </body>
+</html>

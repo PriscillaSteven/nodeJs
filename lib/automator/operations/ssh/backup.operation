@@ -1,0 +1,209 @@
+// Parameters: {
+//     [full|incremental|verify]: {
+//         jobname: 'testjob',
+//         targethost: 'client1',
+//         targetuser: 'root',
+//         targetpasswd: 'passwd',
+//         sessionlocation: 'nfs-server:/storage',
+//         compression: 1
+//     }
+// }
+
+var expects = [
+    {
+        cmd: '',
+        next: function() {
+            using = null;
+            if(typeof full === 'object') {
+                using = full; 
+                using.jobtype = 3;
+            } else if(typeof incremental === 'object') {
+                using = incremental;
+                using.jobtype = 4;
+            } else if(typeof verify === 'object') {
+                using = verify;
+                using.jobtype = 5; 
+            }
+            if(!using) return -1;
+            else return (this.index + 1);
+        },
+    },
+    { 
+        name: 'Gather server information',
+        cmd: 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+             'sqlite3 /opt/Arcserve/d2dserver/data/ARCserveLinuxD2D.db ' + 
+             '"SELECT UUID, ManagedServerUUID, Name, ' + 
+             'ManagedServerName, Protocol, Port FROM D2DServer"',
+        expect: function(line) {
+            var info = line.trim().split('|');
+            if(info.length != 6) return;
+            else if(typeof svrENV === 'undefined'){ // ignore other managed servers, the main server should always be the first
+                svrENV = {
+                    uuid: info[0],
+                    managedServerUUID: info[1],
+                    name: info[2],
+                    managedServerName: info[3],
+                    protocol: info[4],
+                    port: info[5]
+                };
+            }
+        }
+    },
+    {
+        name: 'Create backup script',
+        cmd: function() {
+            if(typeof using == 'undefined') 
+                return 'echo "No jobscript provided." && exit 1';
+            var cmdstr = 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                         'export TMPDIR=/ && ';
+            
+            if(using.hasOwnProperty('sessionlocation')) {
+                cmdstr += 'mkdir -p /CRE_ROOT && ';
+                //cmdstr += 'mount "' + using['sessionlocation'] + '" /CRE_ROOT 2>&1 >/dev/null; ';
+                cmdstr += 'umount /CRE_ROOT >/dev/null 2>&1; ';
+            }
+            if(!using.hasOwnProperty('jobname')) using.jobname = "Backup";
+            using.jobname = using.jobname + " - " + (new Date()).toISOString().replace(/:/g,'-') + '-' + __Util.random(1000000);
+            this.backup_jobname = using.jobname;
+
+            cmdstr += 'tmpfile=`mktemp -p /` && echo $tmpfile && echo "';
+            for(var key in using) {
+                if(using.hasOwnProperty(key)) {
+                    if(key.match(/passw(or){0,1}d/)) 
+                        cmdstr += key + ' = $(echo \'' + using[key] + 
+                                  '\' | d2dutil --encrypt)\n';
+                    else cmdstr += key + ' = ' + using[key] + '\n';
+                }
+            }
+            cmdstr += '" > $tmpfile';
+            return cmdstr;
+        },
+        expect: function(line) { scriptFilePath = line.trim(); }
+    },
+    {
+        name: 'Check backup script',
+        cmd: function() {
+            scriptValid = true;
+            return 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                   'd2dbackup --checkjobscript "' + scriptFilePath + '"';
+        },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus !== 0) {
+                scriptValid = false;
+                return false;
+            } else return true;
+        },
+        critical: false
+    },
+    {
+        name: 'Start backup process',
+        cmd: function() {
+            if(!scriptValid)
+                return 'echo "Invalid job script" && exit 1';
+            return 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                   'export CRE_RPC_NO_VERIFY_CLIENT=1 && ' + 
+                   'export D2D_SERVER_UUID="' + 
+                   (svrENV.managedServerUUID || svrENV.uuid)+ '" && ' +
+                   'export D2D_SERVER_NAME="' + 
+                   (svrENV.managedServerName || svrENV.name)+ '" && ' +
+                   'export D2D_SERVER_CHECKLICENSE_URL="' + 
+                   svrENV.protocol + '://' + svrENV.name + ':' + svrENV.port + 
+                   '/WebServiceImpl/CheckLicense?' + '" && ' +
+                   //'jobid=$((`cat /opt/Arcserve/d2dserver/data/.jobid`+1)) && ' + 
+                   'd2dbackup --jobscript ' + scriptFilePath + ' ; ' + 
+                   'sqlite3 /opt/Arcserve/d2dserver/data/ActivityLog.db "select Message from ActivityLog where JobName=\'' + this.backup_jobname + '\' order by RecordID desc"';
+                   //'d2dlog --show=$jobid';
+        },
+        expect: function(line) {
+            if(line.match(/Backup job for .* completed successfully\./)) 
+                this.jobSuccess = true;
+            var sessionInfo = line.match(/Recovery point is: (S\d{10})./)
+            if(sessionInfo) {
+                if(!CASE.get('BackupedSessions')) 
+                    CASE.set('BackupedSessions', {});
+                CASE.get('BackupedSessions')[using.targethost + ''] =
+                    sessionInfo[1];
+                this.foundSessionName = true;
+            }
+            if(line.match('The current job is a Full Backup job')) 
+                this.jobType = 'full';
+            else if(line.match('The current job is a Verify Backup job'))
+                this.jobType = 'verify';
+            else if(line.match('The current job is an Incremental Backup job')) 
+                this.jobType = 'incremental';
+            var statics = line.match(/Total processed.*is (.*), total.*written.*is (.*), space.*compression: (.*)%, read throughput (.*)\/Min, write throughput (.*)\/Min\./);
+            if(!statics) return;   
+            var processed = Number(__Util.unitConv(statics[1] + ' to GB'));
+            var written = Number(__Util.unitConv(statics[2] + ' to GB'));
+            var readSpd = Number(__Util.unitConv(statics[4] + ' to MB'));
+            var writeSpd = Number(__Util.unitConv(statics[5] + ' to MB'));  
+            if(!SUITE.get('Total Backup Size(GB):'))
+                SUITE.set('Total Backup Size(GB):', 0);
+            if(!SUITE.get('Total Written Size(GB):')) 
+                SUITE.set('Total Written Size(GB):', 0);
+            if(!SUITE.get('Max Read (MB/Min):'))
+                SUITE.set('Max Read (MB/Min):', 0);
+            if(!SUITE.get('Min Read (MB/Min):'))
+                SUITE.set('Min Read (MB/Min):', Number.MAX_VALUE);
+            if(!SUITE.get('Max Write(MB/Min):'))
+                SUITE.set('Max Write(MB/Min):', 0);
+            if(!SUITE.get('Min Write(MB/Min):'))
+                SUITE.set('Min Write(MB/Min):', Number.MAX_VALUE);
+            if(!Number.isNaN(processed))
+                SUITE.set(
+                    'Total Backup Size(GB):', 
+                    SUITE.get('Total Backup Size(GB):') + 
+                    Number(processed.toPrecision(4))
+                );
+            if(!Number.isNaN(written))
+                SUITE.set(
+                    'Total Written Size(GB):', 
+                    SUITE.get('Total Written Size(GB):') + 
+                    Number(written.toPrecision(4))
+                );
+            if(!Number.isNaN(readSpd)) {
+                if(SUITE.get('Max Read (MB/Min):') < readSpd)
+                    SUITE.set('Max Read (MB/Min):', readSpd);
+                if(SUITE.get('Min Read (MB/Min):') > readSpd)
+                    SUITE.set('Min Read (MB/Min):', readSpd);
+            }
+            if(!Number.isNaN(writeSpd)) {
+                if(SUITE.get('Max Write(MB/Min):') < writeSpd)
+                    SUITE.set('Max Write(MB/Min):', writeSpd);
+                if(SUITE.get('Min Write(MB/Min):') > writeSpd)
+                    SUITE.set('Min Write(MB/Min):', writeSpd);
+            }
+            //SUITE.dump();
+        },
+        judgeSuccess: function(exitStatus) {
+            if(this.jobSuccess && this.foundSessionName && (exitStatus == 0)) {
+                if(this.jobType == 'full') {
+                    if(!SUITE.get('Backups(full):'))
+                        SUITE.set('Backups(full):', 0);
+                    SUITE.set(
+                        'Backups(full):', 
+                        SUITE.get('Backups(full):') + 1
+                    );
+                } else if(this.jobType == 'verify') {
+                    if(!SUITE.get('Backups(verify):')) 
+                        SUITE.set('Backups(verify):', 0);
+                    SUITE.set(
+                        'Backups(verify):',
+                        SUITE.get('Backups(verify):') + 1
+                    );
+                } else if(this.jobType == 'incremental') {
+                    if(!SUITE.get('Backups(incremental):'))
+                        SUITE.set('Backups(incremental):', 0);
+                    SUITE.set(
+                        'Backups(incremental):', 
+                        SUITE.get('Backups(incremental):') + 1
+                    );
+                }
+                return true;
+            } else return false;
+        },
+        timeout: 7200
+    },
+];
+
+declareOperation(expects);

@@ -1,0 +1,10 @@
+var T = require('./lib/models/Trigger');
+var t = new T('testTrigger');
+var dumper = function(){console.log(arguments);};
+
+T.enabledTriggers(dumper);
+
+t.id(dumper);
+t.name.get(dumper);
+t.name.set('Test Trigger', dumper);
+t.name(dumper);

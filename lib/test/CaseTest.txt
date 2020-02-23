@@ -1,0 +1,40 @@
+var Case = require('./lib/models/Case');
+Case.put('luvyu01', 'ssh', 'test content', 'test desc');
+var put = null,
+    del = null;
+Case.iterate('luvyu01', function(oper, _put, _del, stop) { 
+    console.dir(oper);
+    put = _put;
+    del = _del;
+    stop();
+}, function(err) {
+    if(err) console.log(err);
+    console.log('done');
+});
+
+put('cccc', 'dddd',function(err){console.log('done ' + err)});
+del(function(err){console.log('done ' + err)});
+
+Case.get(me.user, 'case1', function(err, d) {
+    console.dir(err);
+    console.dir(d);
+});
+Case.put(me.user, 'case1', 'throw new Error("Error from test case1.")', [
+    { type: 'ssh', name: 'exec' }, 
+    { type: 'util', name: 'compare' }
+], 'case desc', function(err) {
+    if(err) console.dir(err);
+    else console.log('Case definition saved.');
+});
+Case.get(me.user, 'case2', function(err, d) {
+    console.dir(err);
+    console.dir(d);
+});
+Case.put(me.user, 'case2', 'throw new Error("Error from test case2.")', [
+    { type: 'ssh', name: 'exec' }, 
+    { type: 'user', name: 'defined' },
+    { type: 'util', name: 'compare' }
+], 'case desc', function(err) {
+    if(err) console.dir(err);
+    else console.log('Case definition saved.');
+});

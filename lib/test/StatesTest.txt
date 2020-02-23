@@ -1,0 +1,17 @@
+var S = require('./lib/models/State');
+var dumper = function(){console.log(arguments);};
+
+S.each(dumper);
+S.get('test', dumper);
+S.set('test', true ,dumper);
+S.get('test', dumper);
+S.each(dumper);
+S.set('test', false ,dumper);
+S.get('test', dumper);
+S.set('test1', true ,dumper);
+S.get('test1', dumper);
+S.each(dumper);
+S.del('test', dumper);
+S.each(dumper);
+S.del('test1', dumper);
+S.each(dumper);

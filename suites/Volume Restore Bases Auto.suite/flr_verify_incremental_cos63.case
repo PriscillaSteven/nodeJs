@@ -1,0 +1,52 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origFile = '/tmp/orig_file',
+    saveFile = origFile + '.before_restore',
+    nfsPath = '155.35.103.143:/NFS',
+    serverHost = 'luvyu01-cos63',
+    prepareFiles = [
+        'time dd if=/dev/urandom of="/tmp/orig_file" bs=1M count=100',
+        'cp -p "' + origFile + '" "' + saveFile + '"',
+    ],
+    bscript = {
+        jobname: 'RestVol Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt:/data/fill up data'
+    },
+    rscript = {
+        jobname: 'RestVol Auto: Restore',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: '1',
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        restorefile: origFile,
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+////////////////////////Verify////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFiles })
+      .backup({ verify: bscript })
+      .exec({ cmds: ['rm "' + origFile + '"'] })
+      .restore({ file: rscript })
+      .stat({ files: [origFile, saveFile], to: 'Compare' });
+compare([[serverHost, origFile], [serverHost, saveFile]]);
+
+//////////////////////////////////////////////////////
+/////////////////////Incremental//////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFiles })
+      .backup({ incremental: bscript })
+      .exec({ cmds: ['rm "' + origFile + '"'] })
+      .restore({ file: rscript })
+      .stat({ files: [origFile, saveFile], to: 'Compare' });
+compare([[serverHost, origFile], [serverHost, saveFile]]);

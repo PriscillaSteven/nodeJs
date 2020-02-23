@@ -1,0 +1,9 @@
+// Parameters: { }
+
+var expects = [
+    {
+        cmd: function() { return ("date -s @" + __Util.utcseconds); },
+        critical: false
+    },
+];
+declareOperation(expects);

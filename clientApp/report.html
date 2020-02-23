@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Test Report</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creDynamicList.js'></script>
+        <script src='/public/creTerminal.js'></script>
+        <script src='/public/creSshStepDetail.js'></script>
+        <script src='/public/reportApp.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <!--[if IE]>
+        <script>
+          document.createElement('cre-dynamic-list');
+          document.createElement('cre-search-list');
+          document.createElement('cre-terminal');
+          document.createElement('cre-ssh-step-detial');
+        </script>
+        <![endif]-->
+    </head>
+    <body>            
+        <div id="ng-app" ng-app="creReportApp" ng-controller="creReportMain" class="container">
+            <div ng-if='notFound'>
+                <div class='row'>
+                    <div class="col-md-12">
+                        <h3>Target Test Instance Detail Not Found</h3>
+                        <pre ng-if='error'>{{error}}</pre>
+                    </div>
+                </div>
+            </div>
+            <div ng-show='!notFound'>
+                <div class='row'>
+                    <div class="col-md-12">
+                        <h3 ng-if='!summaryTitle'>Loading test summary ...</h3>   
+                        <h3 ng-if='summaryTitle'>{{summaryTitle}}</h3>
+                        <hr ng-if='summaryTitle'>     
+                        <iframe id='reportFrame' ng-show='summaryTitle'style='
+                            border: none; width: 100%; scroll: none; margin: 0
+                        ' ng-style='{ "height": reportHeight + "px" }'></iframe>            
+                    </div>
+                </div>
+                <hr>
+                <div class='row'>
+                    <div class="col-md-12">
+                        <h3 ng-if='!instanceDetail'>Loading test details ...</h3>    
+                        <h3 ng-if='instanceDetail'>
+                            <span class='label' ng-class="{
+                                'label-success' : instanceDetail.passed,
+                                'label-danger' : !instanceDetail.passed
+                            }">Test {{instanceDetail.passed ? 'Passed' : 'Failed'}}</span>
+                            {{instanceDetail.testDefinition}}
+                            <div class="pull-right h4"
+                                ng-if='instanceDetail.trigger && instanceDetail.env[instanceDetail.trigger]'>
+                                <small>with&nbsp;</small>
+                                {{instanceDetail.trigger}}
+                                <small>&nbsp;@&nbsp;</small>
+                                {{instanceDetail.env[instanceDetail.trigger]}}
+                            </div>
+                        </h3>
+                        <hr ng-if='instanceDetail'>                 
+                        <div ng-if='instanceDetail' class='panel-group'>
+                            <em><strong>{{instanceDetail.passedSuitesNum}}</strong> out of <strong>{{instanceDetail.totalSuitesNum}}</strong> suites passed: </em>
+                            <div class='panel panel-default' ng-repeat="(sname, suite) in instanceDetail.suites">
+                                <div class='panel-heading'>
+                                    <span class='label' ng-class="{
+                                        'label-success' : suite.passed,
+                                        'label-danger' : !suite.passed
+                                    }">Suite {{suite.passed ? 'Passed' : 'Failed'}}</span>
+                                    <span class='h5' id="s_{{sname.replace(' ', '_')}}">{{sname}}</span>
+                                    <div class='h5 pull-right'>
+                                        <small>launched&nbsp;on&nbsp;</small>
+                                        <strong>{{suite.start | date:'yyyy-MM-dd HH:mm:ss.sss'}}</strong>
+                                        <small>&nbsp;</small>
+                                    </div>
+                                </div>
+                                <div class='panel-body panel-group'>
+                                    <em><strong>{{suite.passedCasesNum}}</strong> out of <strong>{{suite.totalCasesNum}}</strong> cases passed: </small></em>          
+                                    <cre-dynamic-list ng-repeat="case_ in suite.cases" items="operation in caseInfoCache[case_.id].operations"
+                                        list-expanded="requestCaseInfo(instanceDetail, suite, case_)" list-style='panel'
+                                        list-collapsed="requestCaseInfo(instanceDetail, suite, case_, true)" 
+                                        type="{{(!case_.passed) ? 'danger' : ''}}">
+                                        <div class='heading-transclude'>
+                                            <span class='label' ng-class="{
+                                                'label-success' : case_.passed,
+                                                'label-danger' : !case_.passed
+                                            }">Case {{case_.passed ? 'Passed' : 'Failed'}}</span>
+                                            <span class='h5' id="c_{{case_.name.replace(' ', '_')}}">{{case_.name}}</span>
+                                            <div class='h5 pull-right'>
+                                                <small>launched&nbsp;on&nbsp;</small>
+                                                <strong>{{case_.start | date:'yyyy-MM-dd HH:mm:ss.sss'}}</strong>
+                                                <small>&nbsp;</small>
+                                            </div>
+                                        </div>
+                                        <!-- <div class='body-transclude'>
+                                            <em>Operations: </em>
+                                            {{case_|json}}
+                                        </div> -->
+                                        <cre-dynamic-list items="step in operationInfoCache[operation.id].steps"
+                                            list-style='panel' type="{{(operation.passed === false) ? 'danger' : ''}}"
+                                            list-expanded="requestOperInfo(instanceDetail, suite, case_, operation)"
+                                            list-collapsed="requestOperInfo(instanceDetail, suite, case_, operation, true)"
+                                            ng-if="operation.started">
+                                            <span class='h5 heading-transclude'>
+                                                <span class='label' ng-class="{
+                                                    'label-success' : operation.passed,
+                                                    'label-danger' : !operation.passed
+                                                }">Operation {{operation.passed ? 'Passed' : 'Failed'}}</span>
+                                                <span class='label label-default'>{{operation.type}}</span>
+                                                <span class='label' ng-class="{
+                                                    'label-primary' : !operation.async,
+                                                    'label-info' : operation.async
+                                                }">{{operation.async ? 'Async' : 'Sync'}}</span>
+                                                <span class='label label-primary' ng-click='openConsole(operation.target)' ng-if='operation.type === "ssh"'>{{operation.target.host}}&nbsp;&nbsp;<i class='glyphicon glyphicon-new-window'></i></span>
+                                                {{operation.name}}
+                                            </span>
+                                            <span class='h5 heading-transclude pull-right'>
+                                                <small>{{operation.message || 'No detailed message.'}}</small>
+                                            </span>
+                                            <!-- <span class='body-transclude' 
+                                                ng-if="!operationInfoCache[operation.id].steps || 
+                                                    operationInfoCache[operation.id].steps.length === 0">
+                                                <em>No steps found in this operation.</em>
+                                            </span>
+                                            <span class='body-transclude' 
+                                                ng-if="operationInfoCache[operation.id].steps && 
+                                                    operationInfoCache[operation.id].steps.length > 0">
+                                                <em>Steps:</em>
+                                            </span>
+                                            <p><pre>{{step | json}}</pre></p> -->
+                                            <cre-ssh-step-detail id="step.id" name="step.name" passed="step.passed"
+                                                cmd="step.cmd" start="step.start" end="step.end" critical="step.critical"
+                                                exit-status="(step.exitSignal || step.exitCode)" 
+                                                on-request-detail="requestSSHStepDetail(step)">
+                                            </cre-ssh-step-detail>
+                                        </cre-dynamic-list>                     
+                                    </cre-dynamic-list>
+                                </div>              
+                            </div>
+                        </div>  
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </body>
+</html>

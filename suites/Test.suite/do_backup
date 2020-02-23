@@ -1,0 +1,39 @@
+context = {
+    jobs_for_servers: {
+        'luvyu01-nfsvr': [
+            {
+                jobname: 'testjob1',
+                targethost: '127.0.0.1',
+                targetuser: 'root',
+                targetpasswd: 'passwd',
+                sessionlocation: 'nfs-server:/storage',
+                compression: 1
+            },
+            {
+                jobname: 'testjob1',
+                targethost: '127.0.0.2',
+                targetuser: 'root',
+                targetpasswd: 'passwd',
+                sessionlocation: 'nfs-server:/storage',
+                compression: 1
+            }
+        ],
+        'luvyu01-olsvr': [
+            {
+                jobname: 'testjob1',
+                targethost: '127.0.0.1',
+                targetuser: 'root',
+                targetpasswd: 'passwd',
+                sessionlocation: 'nfs-server:/storage',
+                compression: 1
+            }
+        ],
+    },
+}
+
+targets = [
+    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+];
+
+targets.doBackup(context);

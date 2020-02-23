@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# BELOW CONFIG IS FOR READHAT
+# chkconfig: 35  99 10
+# description:  CRE service.
+
+# BELOW CONFIG IS FOR SUSE
+### BEGIN INIT INFO 
+# Provides: cre 
+# Required-Start: $network 
+# Required-Stop:
+# Default-Start: 3 5
+# Default-Stop: 
+# Description: CRE service.
+### END INIT INFO
+
+
+ 
+usage ()
+{
+	echo "$0 <start|stop|restart|status>"
+	echo ""
+}
+
+case "$1" in
+	start)
+		/bin/bash /project/node_native/relaunch.sh start
+		rc=$?
+           	;;
+        status)
+		/bin/bash /project/node_native/relaunch.sh status
+		rc=$?
+		;;
+	stop)
+		/bin/bash /project/node_native/relaunch.sh stop
+	   	rc=$?
+		;;
+	restart)
+                /bin/bash /project/node_native/relaunch.sh restart
+                rc=$?
+		;;
+        *)
+                usage
+                rc=1
+                ;;
+esac
+
+
+exit $rc

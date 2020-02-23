@@ -1,0 +1,41 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origFile = '/tmp/orig_file',
+    dupFile1 = origFile + '.d2dduplicate1',
+    dupFile2 = origFile + '.d2dduplicate2',
+    nfsPath = 'luvyu01-nfsvr:/ns',
+    serverHost = 'luvyu01-rhel64',
+    bscript = {
+        jobname: 'FLR Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt:/data/fill up data'
+    },
+    rscript = {
+        jobname: 'FLR Auto: Restore',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: '1',
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        fileoption: '2', // 1: overwrite; 2: duplicate; 3: skip; 
+        restorefile: origFile,
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+////////////////////////CASE//////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: ['time dd if=/dev/urandom of="' + origFile + '" bs=1M count=100'] })
+      .backup({ incremental: bscript })
+      .exec({ cmds: ['rm -f ' + origFile + '.d2dduplicate* || exit 0'] })
+      .restore({ file: rscript })
+      .restore({ file: rscript })
+      .stat({ files: [origFile, dupFile1, dupFile2], to: 'Compare' });
+compare([ [serverHost, origFile], [serverHost, dupFile1], [serverHost, dupFile2] ]);

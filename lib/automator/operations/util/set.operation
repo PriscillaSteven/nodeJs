@@ -1,0 +1,56 @@
+// set({
+//     scope: 'case', // or 'suite', default 'case' if not present.
+//     path: 'toplevelobj', // or a string array for deeper path, like ['top', 'sub', 'target']
+//     value: [object], // any value to be set
+// })
+
+declareOperation(function(param) {
+    var fail = function(msg) { throw new Error(msg + '\n'); };
+    if(!param || !param.path || !param.value) 
+        fail('Invalid parameter.');
+    var scope = null;
+    if(!param.scope || param.scope === 'case') {
+        update('Setting value in case scope.');
+        scope = CASE;
+    } else if(param.scope === 'suite') {
+        update('Setting value in suite scope.');
+        scope = SUITE;
+    } else fail('Invalid scope type: `' + param.scope + '\'.');
+    
+    if(typeof param.path === 'string') {
+        scope.set(param.path, param.value);
+        update('Done set `' + param.path + '\'.');
+    } else if(Array.isArray(param.path) && param.path.length === 1) {
+        if(typeof param.path[0] !== 'string') 
+            fail('`string\' expected for addressing target.');
+        scope.set(param.path[0], param.value);
+        update('Done set `' + param.path[0] + '\'.');
+    } else if(Array.isArray(param.path) && param.path.length > 1) {
+        if(typeof param.path[0] !== 'string') 
+            fail('`string\' expected for addressing target.');
+        var target = scope.get(param.path[0]);
+            lpath = param.path[0];
+        if(!target) {
+            scope.set(param.path[0], { });
+            target = scope.get(param.path[0]);
+        }
+        for(var i = 1; i < param.path.length - 1; i++) {
+            var level = param.path[i];
+            if(typeof level !== 'string') 
+                fail('`string\' expected for addressing target.');
+            lpath += ' => ' + level;
+            if(!target[level]) target[level] = { };
+            target = target[level];
+        }
+        if(typeof param.path[param.path.length - 1] !== 'string') 
+            fail('`string\' expected for addressing target.');
+        lpath += ' => ' + param.path[param.path.length - 1];
+        target[param.path[param.path.length - 1]] = param.value;
+        update('Done set `' + lpath + '\'.');
+    } else fail(
+        'Invalid target path, array[string] or string expected.'
+    );   
+    
+    passed = true;
+    message = 'Successfully set target value.\n';
+});

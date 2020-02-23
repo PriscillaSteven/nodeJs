@@ -1,0 +1,19 @@
+
+declareOperation(function(param) {
+    var fail = function(msg) { throw new Error(msg + '\n'); };
+    var scope = null;
+    if(!param.scope || param.scope === 'case') {
+        update('Dumping value in case scope.');
+        scope = CASE;
+    } else if(param.scope === 'suite') {
+        update('Dumping value in suite scope.');
+        scope = SUITE;
+    } else fail('Invalid scope type: `' + param.scope + '\'.');
+    
+    scope.enumerate(function(prop) {
+        update('`' + prop + '\': ' + Util.inspect(scope.get(prop)));
+    });
+    
+    passed = true;
+    message = 'Done dumping value.\n';
+});

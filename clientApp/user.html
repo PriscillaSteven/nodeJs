@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Tester Status</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creSearchList.js'></script>
+        <script src='/public/creDynamicList.js'></script>
+        <script src='/public/creNotifier.js'></script>
+        <script src='/public/creTerminal.js'></script>
+        <script src='/public/creSshStepDetail.js'></script>
+        <script src='/public/userApp.js'></script>
+        <script src='/public/userAppMain.js'></script>
+        <script src='/public/userAppHistory.js'></script>
+        <script src='/public/userAppOperations.js'></script>
+        <script src='/public/userAppTests.js'></script>
+        <script src='/public/userAppTargets.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <!--[if IE]>
+        <script>
+          document.createElement('cre-dynamic-list');
+          document.createElement('cre-search-list');
+          document.createElement('cre-terminal');
+          document.createElement('cre-ssh-step-detial');
+        </script>
+        <![endif]-->
+    </head>
+    <body>
+        <div id="ng-app" ng-app="creUserApp">
+            <div ng-controller="creUserMain" class="fadeInOut container">
+                <div class="row">
+                    <div class="col-md-12">
+                        <h1 class="pull-left">Tests <small>of maintainer {{name || username}}</small></h1>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-2">
+                        <ul class="nav nav-pills nav-stacked">
+                            <li ng-repeat="item in naviItems" ng-class="item.elClass">
+                                <a ng-click='switchView(item.name)'>{{item.name}}<span class="badge pull-right">{{item.count || ''}}</span></a>
+                            </li>
+                        </ul>
+                        <hr>
+                    </div>
+                    <div  class="col-md-10">
+                        <div ng-include="activeView()"></div>
+                        <hr>
+                    </div>
+                </div>
+            </div>
+            <cre-notifier info-event="notifyInfo" error-event="notifyError">
+            </cre-notifier>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,320 @@
+// Parameters: {
+//     file[s]: {
+//         job_name =
+//         storage_type = cifs|nfs|rps
+//         storage_location =
+//         storage_username =
+//         storage_password =
+//         rps_hostname =
+//         rps_username =
+//         rps_password =
+//         rps_protocol = http|https
+//         rps_port = 8014
+//         rps_datastore =
+//         source_node =
+//         recovery_point =
+//         encryption_password =
+//         file_list = file1:file2
+//         restore_to_original = true|false
+//         restore_target =
+//         restore_target_username =
+//         restore_target_password =
+//         restore_target_folder =
+//         existing_file_handle = overwrite|rename|skip
+//         create_root_directory = true|false
+//     }
+//   OR:
+//      vol[ume[s]]: {
+//         fetchScript: 'serverlet address', //default: null, null indicates the server is D2D server itself.
+//                                           //example: http[s]://IP_or_Host:port/d2drestorevol
+//         jobtype: 'monitor', //default: monitor, valid options are: 'monitor', 'restvol-sync' and 'restvol-async'.
+//         volumes: [ // volumes to restore, this parameter is ignored if jobtype is 'monitor'
+//             {
+//                 sessionsLocation: 'location1', //local mount path of the backup destination
+//                 origHost: 'host1', //the backuped machine to restore, `null' indicates the server itself.
+//                 session: '123', //the session to restore, `null' indicates the newest session.
+//                 origVol: '/dev/xxxn1', 
+//                 destVol: '/dev/xxxn1', 
+//                 password: 'ept_passwd1',
+//                 mount: 'mount_path1',
+//                 instant: true
+//             },
+//             {
+//                 sessionsLocation: 'location2', 
+//                 origHost: 'host2', 
+//                 session: '321', 
+//                 origVol: '/dev/xxxn2', 
+//                 destVol: '/dev/xxxn2', 
+//                 password: 'ept_passwd2',
+//                 mount: 'mount_path2',
+//                 instant: false
+//             },
+//         ] 
+//     }
+//
+// }
+
+// using the /opt/Arcserve/bin/d2drestorefile commandline, example template is:
+//  job_name =
+//  storage_type = cifs|nfs|rps
+//  storage_location =
+//  storage_username =
+//  storage_password =
+//  rps_hostname =
+//  rps_username =
+//  rps_password =
+//  rps_protocol = http|https
+//  rps_port = 8014
+//  rps_datastore =
+//  source_node =
+//  recovery_point =
+//  encryption_password =
+//  file_list = file1:file2
+//  restore_to_original = true|false
+//  restore_target =
+//  restore_target_username =
+//  restore_target_password =
+//  restore_target_folder =
+//  existing_file_handle = overwrite|rename|skip
+//  create_root_directory = true|false
+
+var expects = [
+    {
+        name: 'Determine restore job type',
+        cmd: function() {
+            flr = vr = null;
+            if(typeof file === 'object') flr = file;
+            else if(typeof files === 'object') flr = files;
+            else if(typeof vol === 'object') vr = vol;
+            else if(typeof volume === 'object') vr = volume;
+            else if(typeof volumes === 'object') vr = volumes;
+            return '';
+        },
+        next: function() {
+            if(flr) return 'Create FLR script and run job';
+            else if(vr) return 'Determin `d2drestorevol\' executable';
+            else return -1;
+        }
+    },
+    {
+        name: 'Create FLR script and run job',
+        cmd: function() {
+            var validOptions = [
+                "job_name",
+                "storage_type",
+                "storage_location",
+                "storage_username",
+                "storage_password",
+                "rps_hostname",
+                "rps_username",
+                "rps_password",
+                "rps_protocol",
+                "rps_port",
+                "rps_datastore",
+                "source_node",
+                "recovery_point",
+                "encryption_password",
+                "file_list",
+                "restore_to_original",
+                "restore_target",
+                "restore_target_username",
+                "restore_target_password",
+                "restore_target_folder",
+                "existing_file_handle",
+                "create_root_directory"
+            ];
+            if(typeof flr == 'undefined') 
+                return 'echo "No jobscript provided." ; exit 1';
+                
+            // if(!flr.recovery_point)
+            //     flr.recovery_point = "last";
+            var deleteJob;
+            if(!flr.job_name) {
+                flr.job_name = "Restore " + __Util.now;
+                deleteJob = "";
+            } else deleteJob = 'd2djob --delete="' + flr.job_name + '"; ';
+
+            var cmdstr = 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                         'export TMPDIR=/ && ' +
+                         'tmpfile=`mktemp -p /` && echo "';
+            for(var key in flr) {
+                if(flr.hasOwnProperty(key)) {
+                    if(key.match(/passw(or){0,1}d/)) cmdstr += key + ' = $(echo \'' + flr[key] + '\' | d2dutil --encrypt)\n';
+                    else cmdstr += key + ' = ' + flr[key] + '\n';
+                }
+            }
+            cmdstr += '" > $tmpfile && cp $tmpfile /tmp/restore.js && ' + 
+                      'jobid=$((`cat /opt/Arcserve/d2dserver/data/.jobid`+1)) && ' + 
+                      '/opt/Arcserve/d2dserver/bin/d2drestorefile  --template=$tmpfile --wait; ' + 
+                      'd2dlog --show=$jobid; ' +
+                      deleteJob +
+                      'rm $tmpfile';
+            return cmdstr;
+        },
+        expect: function(line) {
+            if(line.match(/Restore job for .* completed successfully\./))
+                this.jobSuccess = true;
+            if(line.match('The current job will overwrite the existing files at the target location')) 
+                this.jobType = 'overwrite';
+            else if(line.match('The current job will duplicate the existing files at the target location'))
+                this.jobType = 'duplicate';
+            else if(line.match('The current job will skip the existing files at the target location'))
+                this.jobType = 'skip';
+        },
+        judgeSuccess: function(exitStatus) {
+            if(this.jobSuccess && (exitStatus == 0)) {
+                if(this.jobType == 'overwrite') {
+                    if(!SUITE.get('FLR\'s(overwrite):'))
+                        SUITE.set('FLR\'s(overwrite):', 0);
+                    SUITE.set(
+                        'FLR\'s(overwrite):',
+                        SUITE.get('FLR\'s(overwrite):') + 1
+                    );
+                } else if(this.jobType == 'duplicate') {
+                    if(!SUITE.get('FLR\'s(duplicate):'))
+                        SUITE.set('FLR\'s(duplicate):', 0);
+                    SUITE.set(
+                        'FLR\'s(duplicate):',
+                        SUITE.get('FLR\'s(duplicate):') + 1
+                    );
+                } else if(this.jobType == 'skip') {
+                    if(!SUITE.get('FLR\'s(skip):')) 
+                        SUITE.set('FLR\'s(skip):', 0);
+                    SUITE.set(
+                        'FLR\'s(skip):', 
+                        SUITE.get('FLR\'s(skip):') + 1
+                    );
+                }
+                return true;
+            } else return false;
+        },
+        timeout: 3600,
+        next: 'Job Done'
+    },
+    {
+        name: 'Determin `d2drestorevol\' executable',
+        cmd: function() {
+            if((!vr.jobtype) || (vr.jobtype == 'monitor'))
+                return "dir /tmp/linux-d2d-restvol/d2drestvtool";
+            var cmdstr = 'mkdir -p /tmp/restvol-auto/ && ' + 
+                         '[ -d /tmp/linux-d2d-restvol ] && ' +
+                         'rm -rf /tmp/linux-d2d-restvol ;\n ' +
+                         'if [ -d /tmp/linux-d2d-restvol ] ; then exit 1 ; else\n';
+            if(vr.fetchScript && (typeof vr.fetchScript == 'string')) {
+                // executing on client
+                cmdstr += 'restvolexe=$(mktemp) && ' + 
+                          'wget "' + vr.fetchScript + 
+                          '" --no-check-certificate --secure-protocol=TLSv1 -q -O "$restvolexe" && ' +
+                          'chmod +x "$restvolexe" && dir "$restvolexe"';
+            } else cmdstr += 'dir /opt/Arcserve/d2dserver/bin/d2drestorevol'; // executing on server
+            cmdstr += '\nfi';
+            restvolexe = '';
+            return cmdstr;
+        },
+        expect: function(line) { restvolexe = line.trim() },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus === 0 && restvolexe) return true;
+            else return false;
+        }
+    },
+    {
+        name: 'Determin volume restore job type',
+        cmd: function() {
+            if(!vr.jobtype || (vr.jobtype == 'monitor')) {
+                monitorAllRestvolFinish = true;
+                jobIdx = -1;
+                return 'echo "Current job is to monitor all volume restores."';
+            } else {
+                if (!Array.isArray(vr.volumes) || (vr.volumes.length <= 0))
+                    return 'echo "Invalid target `volumes\' specification." && exit 127';
+                jobIdx = 0;
+                if (vr.jobtype == 'restvol-sync') {
+                    monitorAllRestvolFinish = true;
+                    return 'echo "Current job is to submit restvols and monitor all finish."';
+                } else if (vr.jobtype == 'restvol-async') {
+                    monitorAllRestvolFinish = false;
+                    return 'echo "Current job is to submit restvols without monitoring."';
+                } else return 'echo "Invalid jobtype." && exit 127';
+            }
+        },
+    },
+    {
+        name: 'Submit one restvol job',
+        cmd: function() {
+            if(jobIdx == -1) return '';
+            else {
+                var cmdstr = 'ulimit -c 52428800 && ';
+                //cmdstr += "export D2D_RESTVOL_NO_MONITOR=TRUE && ";
+                //var cmdstr = "export D2D_RESTVOL_NO_MONITOR=TRUE && ";
+                var job = vr.volumes[jobIdx];
+                job.origHost = job.origHost || target;
+                if(!job.destVol) job.destVol = job.origVol;
+                if((typeof job.sessionsLocation !== 'string') || 
+                   (typeof job.origHost !== 'string') || 
+                   (typeof job.origVol !== 'string') || 
+                   (typeof job.destVol !== 'string'))
+                    return 'echo "Invalid volume restore specification" && exit 127'
+                cmdstr += '"' + restvolexe + '" --command=restore --storage-path="' + job.sessionsLocation + '" ' +
+                          '--node="' + job.origHost + '" --rp=';
+                if(!job.session) { // try to find the newest session
+                    if(CASE.get('BackupedSessions') && CASE.get('BackupedSessions')[job.origHost + ''])
+                        cmdstr += CASE.get('BackupedSessions')[job.origHost + ''].replace(/S0*/,'');
+                    else cmdstr += '$(rp=`ls "' + job.sessionsLocation + '/' + job.origHost + 
+                                   '" | egrep \'^S[0-9]{10}$\' | sort | tail -n 1` && ' + 
+                                   'expr match "$rp" \'S0*\\([1-9][0-9]*\\)$\')';
+                } else cmdstr += job.session.toString(); // try use the specified session
+                cmdstr += ' --source-volume="' + job.origVol + '"' +
+                          ' --target-volume="' + job.destVol + '"';
+                if(job.mount && (typeof job.mount == 'string')) 
+                    cmdstr += ' --mount-target="' + job.mount + '"';
+                if((typeof job.instant === 'boolean') && job.instant)
+                    cmdstr += ' --quick-recovery'
+                if(job.password && (typeof job.password == 'string')) 
+                    cmdstr += ' --encryption-password="' + job.password + '"';
+                cmdstr += ' --loglevel=5';
+                cmdstr += ' --logfile=/tmp/restvol-auto/from-' + 
+                          job.origVol.replace(/\//g,'-') + '-to-' + 
+                          job.destVol.replace(/\//g,'-') + '-' + 
+                          (new Date()).toISOString().replace(/:/g,'-') +'.log';
+                return cmdstr;
+            }
+        },
+        expect: function(line) { if(line.match(/Restoring/) || line.match('%')) return 'q'; },
+        next: function() {
+            if(jobIdx == -1) return (this.index + 1);
+            if(jobIdx < (vr.volumes.length -1)) {
+                jobIdx += 1;
+                return this.index;
+            } else if(jobIdx == (vr.volumes.length -1))
+                return (this.index + 1);
+        },
+        ptyWidth: 250
+    },
+    {
+        name: 'Start monitor',
+        cmd: function() {
+            var cmdstr = 'ulimit -c 52428800 && "' + restvolexe + '" --command=monitor';
+            if(restvolexe.match(/^\/tmp\/tmp\./)) {
+                if(monitorAllRestvolFinish) return cmdstr + ' ; rm "' + restvolexe + '"';
+                else return 'echo "Skipping monitor for async restore" ; rm "' + restvolexe + '"';
+            } else {
+                if(monitorAllRestvolFinish) return cmdstr;
+                else return 'echo "Skipping monitor for async restore"';
+            }
+        },
+        expect: function(line) { if(line.match(/[F|f]ailed/)) this.failed = true; },
+        judgeSuccess: function(exitStatus) {
+            if((exitStatus == 0) && (!this.failed)) return true;
+            else return false;
+        },
+        timeout: 3600,
+        critical: true,
+        ptyWidth: 250
+    },
+    {
+        name: 'Job Done',
+        cmd: ''
+    }
+];
+
+declareOperation(expects);

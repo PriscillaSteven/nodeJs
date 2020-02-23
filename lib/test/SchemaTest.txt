@@ -1,0 +1,32 @@
+var S = require('./lib/Schema');
+
+var s = new S({ 
+    "foo" : "string",       // Acceptable types are 'string', 'boolean', 'number'.
+    "bar" : {               // Sub schema can be just like a normal one.
+        "sub": {
+            "nest": 'string',
+            "id": 'number',
+            "~ts": 'number',
+        },
+        "~messages": "string",
+    },
+    "~arrStrs": "string",
+    "~arrObjs": {           // This is a collection of objects using sub schema.
+        "id": "number",
+        "~keys": "string" 
+    }
+}, 'luvyu01');
+
+var levelup = require('levelup');
+var db = levelup('../test');
+var onFin = function(err){console.log('done ' + err)};
+var onData = function(data){console.log('Got: ' + util.inspect(data))};
+var onDel = function(data, stop){
+    console.log('Got: ' + util.inspect(data));
+    data.del();
+};
+
+for(var i = 0; i < 5000; i++)
+    s.bar.messages.add(db,'testkey', 'test' + i, onFin);
+s.bar.messages.each(db,'testkey', onDel, onFin);
+s.bar.messages.each(db,'testkey', onData, onFin);

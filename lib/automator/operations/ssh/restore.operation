@@ -1,0 +1,409 @@
+// Parameters: {
+//     file[s]: {
+//         jobname: 'testjob',
+//         targethost: 'client1',
+//         targetuser: 'root',
+//         targetpasswd: 'passwd',
+//         sessionlocation: 'nfs-server:/storage',
+//         recoverypoint: client2/S0000000001, //[Or: "sessionhost: 'client2er'" to make it try auto find]
+//         compression: 1
+//     }
+//   OR:
+//      vol[ume[s]]: {
+//         fetchScript: 'serverlet address', //default: null, null indicates the server is D2D server itself.
+//                                           //example: http[s]://IP_or_Host:port/d2drestorevol
+//         jobtype: 'monitor', //default: monitor, valid options are: 'monitor', 'restvol-sync' and 'restvol-async'.
+//         volumes: [ // volumes to restore, this parameter is ignored if jobtype is 'monitor'
+//             {
+//                 sessionsLocation: 'location1', //local mount path of the backup destination
+//                 origHost: 'host1', //the backuped machine to restore, `null' indicates the server itself.
+//                 session: '123', //the session to restore, `null' indicates the newest session.
+//                 origVol: '/dev/xxxn1', 
+//                 destVol: '/dev/xxxn1', 
+//                 password: 'ept_passwd1',
+//                 mount: 'mount_path1',
+//                 instant: true
+//             },
+//             {
+//                 sessionsLocation: 'location2', 
+//                 origHost: 'host2', 
+//                 session: '321', 
+//                 origVol: '/dev/xxxn2', 
+//                 destVol: '/dev/xxxn2', 
+//                 password: 'ept_passwd2',
+//                 mount: 'mount_path2',
+//                 instant: false
+//             },
+//         ] 
+//     }
+//   OR:
+//      ivm: {}
+//
+// }
+
+// Restore File parameters:
+//  jobname = test rest
+//  jobtype = 23
+//  uuid = 0safsfa
+//  targethost = 155.35.82.137
+//  targetuser = root
+//  targetpasswd = DB8dQGkylMoeZgcQousGNg==
+//  sessionlocation = luvyu01-nfsvr:/ns
+//  recoverypoint = 155.35.82.137/S0000000006
+//  compression = 1
+//  restoretargetdir = /
+//  restoretooriginal = 1
+//  fileoption = 2
+//  estimateoption = 0
+//  stripoption = 1
+//  restorefile = /bin
+
+//job_name = nutanixtest
+//vm_type = esx
+//vm_server = 10.57.16.5
+//vm_svr_username = root
+//vm_svr_password = JBIb5T2yEKAII3ugU+UbuQ==
+//vm_svr_protocol = https
+//vm_svr_port = 443
+//#vm_name =
+//vm_network = Default
+//vm_datastore = default-container-59520971834042
+//vm_memory = 1024
+//#vm_cpu_count =
+//#vm_resource_pool =
+//storage_location_type = nfs
+//storage_location = luyu-stor:/fs
+//#storage_username =
+//#storage_password =
+//source_node = luyu-deb9
+//recovery_point = last
+//guest_network = dhcp
+//enable_instant_restore = yes
+
+
+var expects = [
+    {
+        name: 'Determine restore job type',
+        cmd: function() {
+            flr = vr = ivmr = null;
+            if(typeof file === 'object') flr = file;
+            else if(typeof files === 'object') flr = files;
+            else if(typeof vol === 'object') vr = vol;
+            else if(typeof volume === 'object') vr = volume;
+            else if(typeof volumes === 'object') vr = volumes;
+            else if(typeof ivm === 'object') ivmr = ivm;
+            return '';
+        },
+        next: function() {
+            if(flr) return 'Create FLR script and run job';
+            else if(ivmr) return 'Create IVM script and run job';
+            else if(vr) return 'Determin `d2drestorevol\' executable';
+            else return -1;
+        }
+    },
+    {
+        name: 'Create IVM script and run job',
+        cmd: function() {            
+            if(typeof ivmr == 'undefined') 
+                return 'echo "No jobscript provided." ; exit 1';
+
+            if(!ivmr.job_name) ivmr.job_name = "InstantVM";
+            ivmr.job_name = ivmr.job_name + " - " + (new Date()).toISOString().replace(/:/g,'-') + '-' + __Util.random(1000000);
+            this.ivmr_job_name = ivmr.job_name;
+
+            ivmr.enable_instant_restore = "yes";
+            
+            if(!ivmr.recovery_point) {
+                if(CASE.get('BackupedSessions')) {
+                    if(ivmr.source_node) {
+                        if(CASE.get('BackupedSessions')[ivmr.source_node + '']) {
+                            ivmr.recovery_point = CASE.get('BackupedSessions')[ivmr.source_node + ''];
+                        }
+                    } else { 
+                        return 'echo "No source_node provided." ; exit 1';
+                    }
+                } else {
+                    ivmr.recovery_point = 'last';
+                }
+            }
+            if(!ivmr.guest_hostname)
+                ivmr.guest_hostname = ivmr.source_node + "-ivmr";
+            
+            var cmdstr = 'source /opt/Arcserve/d2dserver/bin/setenv && tmpfile=`mktemp -p /tmp/` && echo "';
+            for(var key in ivmr) {
+                if(ivmr.hasOwnProperty(key)) {
+                    if(key.match(/passw(or){0,1}d/)) cmdstr += key + ' = $(echo \'' + ivmr[key] + '\' | d2dutil --encrypt)\n';
+                    else if(key.match(/restorefile/)) {
+                        if(Array.isArray(ivmr[key])) {
+                            for(var i = 0 ; i < ivmr[key].length; i ++) 
+                                cmdstr += key + ' = ' + ivmr[key][i] + '\n';
+                        } else cmdstr += key + ' = ' + ivmr[key] + '\n';
+                    } else cmdstr += key + ' = ' + ivmr[key] + '\n';
+                }
+            }
+            cmdstr += '" > $tmpfile && cp $tmpfile /tmp/restoreivm.js && ' + 
+                      // 'jobid=$((`cat /opt/Arcserve/d2dserver/data/.jobid`+1)) && ' + 
+                      'd2drestorevm --template=$tmpfile; rc=$?; [ $rc -eq 0 ] && ' +
+                      'while ! sqlite3 /opt/Arcserve/d2dserver/data/ActivityLog.db "select Message from ActivityLog where JobName=\'' + this.ivmr_job_name + '\' order by RecordID desc limit 10" | grep -e "ready to use" -e "fail" -e "Fail"; do sleep 5; done; ' +
+                      'sqlite3 /opt/Arcserve/d2dserver/data/ActivityLog.db "select Message from ActivityLog where JobName=\'' + this.ivmr_job_name + '\' order by RecordID desc"';
+                      //'while ! echo "`d2dlog --show=$jobid`" | grep -e "ready to use" -e "fail" -e "Fail"; do sleep 5; done; ' +
+                      //'d2dlog --show=$jobid;';
+            return cmdstr;
+        },
+        expect: function(line) {
+            if(line.match(/system is ready to use now\./))
+                this.jobSuccess = true;
+        },
+        judgeSuccess: function(exitStatus) {
+            if(this.jobSuccess)
+                return true;
+            else return false;
+        },
+        timeout: 3600,
+        next: function() {
+            if(this.jobSuccess) return 'Cleanup IVM job';
+            else return 'Job Done';
+        }
+    },
+    {
+        name: "Cleanup IVM job",
+        cmd: function() {
+            return 'source /opt/Arcserve/d2dserver/bin/setenv; d2djob --cancel="' 
+            + this.ivmr_job_name + '" --wait; d2djob --delete="' 
+            + this.ivmr_job_name + '"';
+        },
+        timeout: 3600,
+        next: 'Job Done',
+        critical: false
+    },
+    {
+        name: 'Create FLR script and run job',
+        cmd: function() {
+            if(typeof flr == 'undefined') 
+                return 'echo "No jobscript provided." ; exit 1';
+                
+            if(!flr.jobname) flr.jobname = "File Level Restore";
+            flr.jobname = flr.jobname + " - " + (new Date()).toISOString().replace(/:/g,'-') + '-' + __Util.random(1000000);
+            this.flr_jobname = flr.jobname;
+            flr.uuid = flr.uuid || '00000000-0000-0000-0000-000000000000';
+            flr.jobtype = flr.jobtype || 23;
+            if(!flr.recoverypoint) {
+                if(CASE.get('BackupedSessions')) {
+                    if(flr.sessionhost) {
+                        if(CASE.get('BackupedSessions')[flr.sessionhost + '']) {
+                            flr.recoverypoint = flr.sessionhost + '/' +
+                                CASE.get('BackupedSessions')[flr.sessionhost + ''];
+                        }
+                        delete flr.sessionhost;
+                    } else { 
+                        if(CASE.get('BackupedSessions')[flr.targethost + '']) {
+                            flr.recoverypoint = flr.targethost + '/' +
+                                CASE.get('BackupedSessions')[flr.targethost + ''];
+                        }
+                    }
+                } else {
+                    if(flr.sessionhost) {
+                        flr.recoverypoint = flr.sessionhost;
+                        delete flr.sessionhost;
+                    } else flr.recoverypoint = flr.targethost;
+                    flr.recoverypoint += 
+                        '/$(mp=`mktemp -d` && mount ' + flr.sessionlocation + ' $mp || ' + 
+                        'mount --bind ' + flr.sessionlocation + ' $mp && ' + 
+                        'echo `ls $mp/' + flr.recoverypoint + ' | ' + 
+                        'egrep \'^S[0-9]{10}$\' | sort | tail -n 1` ; umount -f $mp)';
+                }
+            }
+            var cmdstr = 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                         'export TMPDIR=/ && ' +
+                         'tmpfile=`mktemp -p /` && echo "';
+            for(var key in flr) {
+                if(flr.hasOwnProperty(key)) {
+                    if(key.match(/passw(or){0,1}d/)) cmdstr += key + ' = $(echo \'' + flr[key] + '\' | d2dutil --encrypt)\n';
+                    else if(key.match(/restorefile/)) {
+                        if(Array.isArray(flr[key])) {
+                            for(var i = 0 ; i < flr[key].length; i ++) 
+                                cmdstr += key + ' = ' + flr[key][i] + '\n';
+                        } else cmdstr += key + ' = ' + flr[key] + '\n';
+                    } else cmdstr += key + ' = ' + flr[key] + '\n';
+                }
+            }
+            cmdstr += '" > $tmpfile && cp $tmpfile /tmp/restore.js && ' + 
+                      //'jobid=$((`cat /opt/Arcserve/d2dserver/data/.jobid`+1)) && ' + 
+                      'd2drestorefile  --jobscript $tmpfile ; ' + 
+                      'sqlite3 /opt/Arcserve/d2dserver/data/ActivityLog.db "select Message from ActivityLog where JobName=\'' + this.flr_jobname + '\' order by RecordID desc"';
+                      //'d2dlog --show=$jobid';
+            return cmdstr;
+        },
+        expect: function(line) {
+            if(line.match(/Restore job for .* completed successfully\./))
+                this.jobSuccess = true;
+            if(line.match('The current job will overwrite the existing files at the target location')) 
+                this.jobType = 'overwrite';
+            else if(line.match('The current job will duplicate the existing files at the target location'))
+                this.jobType = 'duplicate';
+            else if(line.match('The current job will skip the existing files at the target location'))
+                this.jobType = 'skip';
+        },
+        judgeSuccess: function(exitStatus) {
+            if(this.jobSuccess && (exitStatus == 0)) {
+                if(this.jobType == 'overwrite') {
+                    if(!SUITE.get('FLR\'s(overwrite):'))
+                        SUITE.set('FLR\'s(overwrite):', 0);
+                    SUITE.set(
+                        'FLR\'s(overwrite):',
+                        SUITE.get('FLR\'s(overwrite):') + 1
+                    );
+                } else if(this.jobType == 'duplicate') {
+                    if(!SUITE.get('FLR\'s(duplicate):'))
+                        SUITE.set('FLR\'s(duplicate):', 0);
+                    SUITE.set(
+                        'FLR\'s(duplicate):',
+                        SUITE.get('FLR\'s(duplicate):') + 1
+                    );
+                } else if(this.jobType == 'skip') {
+                    if(!SUITE.get('FLR\'s(skip):')) 
+                        SUITE.set('FLR\'s(skip):', 0);
+                    SUITE.set(
+                        'FLR\'s(skip):', 
+                        SUITE.get('FLR\'s(skip):') + 1
+                    );
+                }
+                return true;
+            } else return false;
+        },
+        timeout: 3600,
+        next: 'Job Done'
+    },
+    {
+        name: 'Determin `d2drestorevol\' executable',
+        cmd: function() {
+            if((!vr.jobtype) || (vr.jobtype == 'monitor'))
+                return "dir /tmp/linux-d2d-restvol/d2drestvtool";
+            var cmdstr = 'mkdir -p /tmp/restvol-auto/ && ' + 
+                         '[ -d /tmp/linux-d2d-restvol ] && ' +
+                         'rm -rf /tmp/linux-d2d-restvol ;\n ' +
+                         'if [ -d /tmp/linux-d2d-restvol ] ; then exit 1 ; else\n';
+            if(vr.fetchScript && (typeof vr.fetchScript == 'string')) {
+                // executing on client
+                cmdstr += 'restvolexe=$(mktemp) && ' + 
+                          'wget "' + vr.fetchScript + 
+                          '" --no-check-certificate -q -O "$restvolexe" && ' +
+                          'chmod +x "$restvolexe" && dir "$restvolexe"';
+            } else cmdstr += 'dir /opt/Arcserve/d2dserver/bin/d2drestorevol'; // executing on server
+            cmdstr += '\nfi';
+            restvolexe = '';
+            return cmdstr;
+        },
+        expect: function(line) { restvolexe = line.trim() },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus === 0 && restvolexe) return true;
+            else return false;
+        }
+    },
+    {
+        name: 'Determin volume restore job type',
+        cmd: function() {
+            if(!vr.jobtype || (vr.jobtype == 'monitor')) {
+                monitorAllRestvolFinish = true;
+                jobIdx = -1;
+                return 'echo "Current job is to monitor all volume restores."';
+            } else {
+                if (!Array.isArray(vr.volumes) || (vr.volumes.length <= 0))
+                    return 'echo "Invalid target `volumes\' specification." && exit 127';
+                jobIdx = 0;
+                if (vr.jobtype == 'restvol-sync') {
+                    monitorAllRestvolFinish = true;
+                    return 'echo "Current job is to submit restvols and monitor all finish."';
+                } else if (vr.jobtype == 'restvol-async') {
+                    monitorAllRestvolFinish = false;
+                    return 'echo "Current job is to submit restvols without monitoring."';
+                } else return 'echo "Invalid jobtype." && exit 127';
+            }
+        },
+    },
+    {
+        name: 'Submit one restvol job',
+        cmd: function() {
+            if(jobIdx == -1) return '';
+            else {
+                var cmdstr = 'ulimit -c 52428800 && ';
+                //cmdstr += "export D2D_RESTVOL_NO_MONITOR=TRUE && ";
+                //var cmdstr = "export D2D_RESTVOL_NO_MONITOR=TRUE && ";
+                var job = vr.volumes[jobIdx];
+                job.origHost = job.origHost || target;
+                if(!job.destVol) job.destVol = job.origVol;
+                if((typeof job.sessionsLocation !== 'string') || 
+                   (typeof job.origHost !== 'string') || 
+                   (typeof job.origVol !== 'string') || 
+                   (typeof job.destVol !== 'string'))
+                    return 'echo "Invalid volume restore specification" && exit 127'
+                cmdstr += '"' + restvolexe + '" --command=restore --storage-path="' + job.sessionsLocation + '" ' +
+                          '--node="' + job.origHost + '" --rp=';
+                if(!job.session) { // try to find the newest session
+                    if(CASE.get('BackupedSessions') && CASE.get('BackupedSessions')[job.origHost + ''])
+                        cmdstr += CASE.get('BackupedSessions')[job.origHost + ''].replace(/S0*/,'');
+                    else cmdstr += '$(rp=`ls "' + job.sessionsLocation + '/' + job.origHost + 
+                                   '" | egrep \'^S[0-9]{10}$\' | sort | tail -n 1` && ' + 
+                                   'expr match "$rp" \'S0*\\([1-9][0-9]*\\)$\')';
+                } else cmdstr += job.session.toString(); // try use the specified session
+                cmdstr += ' --source-volume="' + job.origVol + '"' +
+                          ' --target-volume="' + job.destVol + '"';
+                if(job.mount && (typeof job.mount == 'string')) 
+                    cmdstr += ' --mount-target="' + job.mount + '"';
+                if((typeof job.instant === 'boolean') && job.instant)
+                    cmdstr += ' --quick-recovery'
+                if(job.password && (typeof job.password == 'string')) 
+                    cmdstr += ' --encryption-password="' + job.password + '"';
+                cmdstr += ' --loglevel=5';
+                cmdstr += ' --logfile=/tmp/restvol-auto/from-' + 
+                          job.origVol.replace(/\//g,'-') + '-to-' + 
+                          job.destVol.replace(/\//g,'-') + '-' + 
+                          (new Date()).toISOString().replace(/:/g,'-') +'.log';
+                return cmdstr;
+            }
+        },
+        expect: function(line) { if(line.match(/Restoring/) || line.match('%')) return 'q'; },
+        next: function() {
+            if(jobIdx == -1) return (this.index + 1);
+            if(jobIdx < (vr.volumes.length -1)) {
+                jobIdx += 1;
+                return this.index;
+            } else if(jobIdx == (vr.volumes.length -1))
+                return (this.index + 1);
+        },
+        ptyWidth: 250
+    },
+    {
+        name: 'Start monitor',
+        cmd: function() {
+            var cmdstr = 'ulimit -c 52428800 && "' + restvolexe + '" --command=monitor';
+            if(restvolexe.match(/^\/tmp\/tmp\./)) {
+                if(monitorAllRestvolFinish) return cmdstr + ' ; rm "' + restvolexe + '"';
+                else return 'echo "Skipping monitor for async restore" ; rm "' + restvolexe + '"';
+            } else {
+                if(monitorAllRestvolFinish) return cmdstr;
+                else return 'echo "Skipping monitor for async restore"';
+            }
+        },
+        expect: function(line) { if(line.match(/[F|f]ailed/)) this.failed = true; },
+        judgeSuccess: function(exitStatus) {
+            if((exitStatus == 0) && (!this.failed)) {                
+                this.jobSuccess = true;
+                return true;
+            } else return false;
+        },
+        timeout: 3600,
+        critical: true,
+        ptyWidth: 250
+    },
+    {
+        name: 'Job Done',
+        cmd: function() {
+            return "";
+        }
+    }
+];
+
+declareOperation(expects);
+
+

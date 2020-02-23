@@ -1,0 +1,26 @@
+targets = [
+    //{ host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    //{ host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+    //{ host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+    //{ host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' }
+    //{ host: 'luyu426-bbb', username: 'test', password: 'test' }
+];
+
+// /test/.devTest();
+//(targets[0]).devTest().async.devTest().sync.devTest()
+//targets.async.devTest().sync.devTest();
+wait();
+//targets.async.devTest();
+$(targets[0]).async.devTest();
+wait();
+
+var target = $(targets[0]);
+target.stat({ files: ['/tmp/restvol_file', '/tmp/test'] });
+
+dump();
+
+$([
+    ['Stat', 'luvyu01-s11364', '/tmp/restvol_file'],
+    ['Stat', 'luvyu01-s11364', '/tmp/test']
+]).compare();

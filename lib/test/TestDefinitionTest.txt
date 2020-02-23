@@ -1,0 +1,34 @@
+var TestDefinition = require('./lib/models/TestDefinition');
+TestDefinition.put('luvyu01', 'ssh', 'test content', 'test desc');
+var put = null,
+    del = null;
+TestDefinition.iterate('luvyu01', function(oper, _put, _del, stop) { 
+    console.dir(oper);
+    put = _put;
+    del = _del;
+    stop();
+}, function(err) {
+    if(err) console.log(err);
+    console.log('done');
+});
+
+put('cccc', 'dddd',function(err){console.log('done ' + err)});
+del(function(err){console.log('done ' + err)});
+
+var testDef = { 
+    suite1: {
+        case1: null
+    },
+    suite2: {
+        case1: null,
+        case2: null
+    }
+};
+TestDefinition.get(me.user, 'test', function(err, d) {
+    console.dir(err);
+    console.dir(d);
+});
+TestDefinition.put(me.user, 'test', testDef, 'desc', function(err) {
+    if(err) console.dir(err);
+    else console.log('Test definition saved.');
+});

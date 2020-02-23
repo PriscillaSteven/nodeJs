@@ -1,0 +1,119 @@
+// compare({
+//     targets: [],
+//     root: 'Compare', // can be ignored, default 'Compare'
+//     scope: 'case', // or 'suite', default 'case'
+//     ignore: ['prop1'],
+// })
+
+declareOperation(function(param) {
+    var fail = function(msg) { throw new Error(msg + '\n'); };
+    if(!param) param = {};
+    if(Array.isArray(param)) param = { targets: param };
+    if(typeof param.root !== 'string')
+        param.root = 'Compare';
+    if(!param.targets || 
+       !Array.isArray(param.targets) ||
+       param.targets.length <= 1)
+        fail('Nothing to compare.');
+    param.targets.forEach(function(item) {
+        if(typeof item !== 'string' && !Array.isArray(item))
+            fail('Invalid target specification.');
+    });
+    var scope = null;
+    if(!param.scope || param.scope === 'case') {
+        update('Comparing in case scope.');
+        scope = CASE;
+    } else if(param.scope === 'suite') {
+        update('Comparing in suite scope.');
+        scope = SUITE;
+    } else fail('Invalid scope type: `' + param.scope + '\'.');
+    if(!scope.get(param.root)) scope.set(param.root, {});
+    var root = scope.get(param.root),
+        targets = [];
+    update('Validating all targets exist.');
+    param.targets.forEach(function(target) {
+        if(typeof target === 'string') {
+            if(!root[target])
+                fail('Cannot find target `' + target + '\'.');
+            targets.push({
+                obj: Util.shallow(root[target]),
+                path: target
+            });
+            update('Validated target `' + target + '\'');
+        } else if(Array.isArray(target) && target.length > 0) {
+            if(typeof target[0] !== 'string') 
+                fail('`string\' expected for addressing target.');
+            var res = root[target[0]];
+                path = target[0];
+            if(!res) fail('Cannot find target `' + path + '\'.');
+            for(var i = 1; i < target.length; i++) {
+                var level = target[i];
+                if(typeof level !== 'string') 
+                    fail('`string\' expected for addressing target.');
+                path += ' => ' + level;
+                if(!res[level])
+                    fail('Cannot find target `' + path + '\'.');
+                res = res[level];
+            }
+            targets.push({
+                obj: Util.shallow(res),
+                path: path
+            });
+            update('Validated target `' + path + '\'');
+        } else fail(
+            'Invalid compare target, array[string] or string expected.'
+        );        
+    });
+    
+    if(param.ignore && Array.isArray(param.ignore))
+        targets.forEach(function(target) {
+            param.ignore.forEach(function(prop) {
+                delete target.obj[prop];
+            });
+        });
+        
+    passed = true;
+    message = '';
+    if(typeof targets[0].obj === 'string' ||
+       typeof targets[0].obj === 'number' ||
+       typeof targets[0].obj === 'boolean' ||
+       typeof targets[0].obj === 'function' ||
+       targets[0].obj instanceof RegExp ) {
+        var std = targets[0];
+        targets.forEach(function(target) {
+            if(target.obj.toString() !== std.obj.toString()) {
+                passed = false;
+                message += 
+                    'Different targets `' + std.path + 
+                    '\' and `' + target.path + '\'.\n';
+            }
+        });
+        if(passed) message += 'All targets identical.\n';
+        else message += 'Compare failed.\n'
+        return;
+    }
+    var std = targets[0],
+        stdProps = Util.getOwnProperties(std.obj);
+    targets.forEach(function(target, idx) {
+        if(idx === 0) return;
+        var targetProps = Util.getOwnProperties(target.obj);
+        if(targetProps.sort().toString() !== stdProps.sort().toString()) {
+            passed = false;
+            message += 
+                'Different properties between `' + 
+                std.path + '\' and `' + target.path + '\'.\n';
+            return;
+        }
+        for(var i = 0; i < targetProps.length; i++) {
+            var prop = targetProps[i];
+            if(std.obj[prop] !== target.obj[prop]) {
+                passed = false;
+                message += 
+                    'Property `' + prop + '\' differs between `' + 
+                    std.path + '\' and `' + target.path + '\'.\n';
+            }
+        }
+    });
+    if(passed) message += 'All targets identical.\n';
+    else message += 'Compare failed.\n'
+});

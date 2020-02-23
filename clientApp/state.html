@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Server States</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creSearchList.js'></script>
+        <script src='/public/creDynamicList.js'></script>
+        <script src='/public/creNotifier.js'></script>
+        <script src='/public/creTerminal.js'></script>
+        <script src='/public/creSshStepDetail.js'></script>
+        <script src='/public/stateApp.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <!--[if IE]>
+        <script>
+          document.createElement('cre-dynamic-list');
+          document.createElement('cre-search-list');
+          document.createElement('cre-terminal');
+          document.createElement('cre-ssh-step-detail');
+        </script>
+        <![endif]-->
+    </head>
+    <body>            
+        <div id="ng-app" ng-app="creStateApp" ng-controller="creStateMain" class="container" ng-show="shouldShow()">
+            <h1>Server Status</h1>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">      
+                    <h3>Server Scripts</h3>
+                    <cre-search-list items="script in allServerScripts"  order-by="['name', 'modification']"
+                         filter="{ name: { header: 'Filter State', placeholder: 'Name' } }" 
+                         actions="[{name: 'Create New Script', action: 'newScript()'}]" 
+                         empty-message="No Server Script Found">
+                        <div class="panel panel-default">
+                            <div class='panel-heading'>
+                                <span>{{script.name}}</span>  
+                                <div class="btn-group pull-right">
+                                    <button type="button" class="btn btn-xs disabled">                          
+                                        &nbsp;Last modify: {{script.modification | date:'yyyy-MM-dd HH:mm:ss.sss'}}
+                                    </button>
+                                    <button class="btn btn-xs btn-info" ng-click='removeScript(script)'>
+                                        &nbsp;&nbsp;Delete&nbsp;&nbsp;
+                                        <i class="glyphicon glyphicon-trash"></i>
+                                    </button>
+                                    <button type="button" title="Click to switch state" 
+                                        class="btn btn-xs" ng-class="{
+                                            'btn-success': script.enabled,
+                                            'btn-warning': !script.enabled
+                                        }" ng-click='switchEnable(script)'>
+                                        &nbsp;&nbsp;{{script.enabled ? 'Enabled' : 'Disabled'}}&nbsp;&nbsp;
+                                        <i class="glyphicon" ng-class="{
+                                            'glyphicon-ok': script.enabled,
+                                            'glyphicon-remove': !script.enabled
+                                        }"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-primary" ng-click='fetchScript(script)'>
+                                        &nbsp;&nbsp;Edit&nbsp;&nbsp;
+                                        <i class="glyphicon glyphicon-pencil"></i>
+                                    </button>
+                                </div>                            
+                            </div>   
+                        </div>
+                    </cre-search-list>                                            
+                </div>
+                <div class="col-md-6">   
+                    <h3>Server Terminal</h3>
+                    <cre-terminal in-event='serverdata' style="height: 350px">
+                    </cre-terminal>
+                </div>
+            </div>            
+            <div class="row">
+                <div class="col-md-12">
+                    <h3>Server States</h3>
+                    <cre-search-list items="state in allStates"  order-by="['name', 'value']"
+                         filter="{ name: { header: 'Filter State', placeholder: 'Name' }, value: { header: 'With', placeholder: 'Value' } }" 
+                         actions="[{name: 'Create New Entry', action: 'addNewEntry()'}]" 
+                         empty-message="No Server State Entry Found">
+                         <div class="input-group">
+                            <span class="input-group-addon">Name</span>
+                            <input class="form-control" ng-disabled="true" ng-model="state.name">
+                            <span class="input-group-addon">Value</span>
+                            <input class="form-control disabled" ng-disabled="state.status === 'Edit'" ng-model="state.value">
+                            <div class="input-group-btn">
+                                <button class="btn btn-default" ng-click="subAction(state)">
+                                    {{state.subStatus}}
+                                </button>
+                                <button class="btn btn-default" ng-click="action(state)">
+                                    {{state.status}}
+                                </button>
+                            </div>
+                        </div>
+                    </cre-search-list>  
+                    <hr>           
+                </div>
+            </div>            
+            <cre-notifier info-event="notifyInfo" error-event="notifyError">
+            </cre-notifier>
+        </div> 
+    </body>
+</html>

@@ -1,0 +1,17 @@
+declareOperation([
+//    { cmd: 'sleep 5', async: false },
+//    { cmd: 'sleep 2', async: false },
+//    { cmd: 'sleep 5', async: true },
+//    { cmd: 'sleep 12', async: true },
+//    { cmd: 'echo O1', async: true },
+    { cmd: 'echo O2', async: true },
+//    { cmd: 'echo O3', async: true },
+//    { cmd: 'echo O4', async: true },
+//    { cmd: 'sleep 4', async: true },
+//    { cmd: 'sleep 5', async: true },
+//    { cmd: 'sleep 6', async: true },
+//    { cmd: 'sleep 7', async: true },
+//    { cmd: 'sleep 8', async: true },
+//    { cmd: 'sleep 9', async: true },
+//    { cmd: 'sleep 10', async: true },
+]);

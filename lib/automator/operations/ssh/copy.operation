@@ -1,0 +1,52 @@
+// Parameters: {
+//     from: '/path/to/something',
+//     to: '/path/to/to',
+//   OR:
+//     to: {
+//         host: 'to_svr',
+//         username: 'user2',
+//         password: 'pass1',
+//         path: 'something',
+//     },
+//     params: '-p' // default
+// }
+
+
+expects = [
+    {
+        name: 'Copy object',
+        cmd: function() {
+            var cmdstr = '';
+            if(typeof from !== 'string')
+                return 'echo "Invalid parameters." ; exit 1 ;';
+            if(typeof to == 'string') cmdstr += 'cp ';
+            if(typeof to == 'object') {
+                cmdstr += 'scp ';
+                if((typeof to.path !== 'string') ||
+                   (typeof to.host !== 'string') ||
+                   (typeof to.username !== 'string') ||
+                   (typeof to.password !== 'string'))
+                    return 'echo "Invalid parameters." ; exit 1 ;';                
+            }
+            if(typeof params == 'undefined') cmdstr += '-p '
+            else if(typeof params == 'string') cmdstr += params + ' '
+            else return 'echo "Invalid options." ; exit 1 ;';
+            cmdstr += from + ' ';
+            if(typeof to == 'string') cmdstr += to + ' ;';
+            if(typeof to == 'object')
+                cmdstr += to.username + '@' + to.host + ':' + to.path + ' ;';
+            return cmdstr;
+        },
+        monitor: function(data) {
+            if(to.password) {
+                this._buff = this._buff || '';
+                this._buff += data;
+                if(this._buff.match(/.*[Pp]assword.*/))
+                    return to.password;
+            }
+        },
+        timeout: 3600,
+    }
+];
+
+declareOperation(expects);

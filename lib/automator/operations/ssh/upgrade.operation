@@ -1,0 +1,233 @@
+// Parameters: {
+//     buildLocation: 'wanzh02-bld:/build/Oolong',
+//     targetVersion: /2181\.1/,
+//     cleanInstall: false,
+// }
+
+var expects = [
+    {
+        cmd: '',
+        next: function() {
+            if(typeof buildLocation === 'undefined') return -1;
+            if(typeof cleanInstall === 'undefined') cleanInstall = false;
+            if(typeof targetVersion === 'undefined') targetVersion = null;
+            return (this.index + 1);
+        }
+    },
+    {
+        name: 'Find installed version',
+        cmd: 'cat /opt/Arcserve/d2dserver/RELVERSION',
+        expect: function(version) {
+            var ver = version.match(/\(build (\d{4})\.(\d+)\)/);
+            if(ver) {
+                currentVersionMain = parseInt(ver[1]);
+                currentVersionMinor = parseInt(ver[2]);
+            } else {
+                currentVersionMain = 0;
+                currentVersionMinor = 0;
+            }
+            return null;
+        },
+        critical: false
+    },
+    {
+        name: 'Mount build location',
+        cmd: function() {
+            buildMountPath = '';
+            return 'mp=`mktemp -d` && ' +
+                   'mount "' + buildLocation + '" "$mp" ;\n' +
+                   'if [ $? -ne 0 ] ; then \nrmdir "$mp"\nexit 1\n' +
+                   'else\necho "$mp"\nfi';
+        },
+        expect: function(line) {
+            buildMountPath =  line.trim();
+            return null;
+        }
+    },
+    {
+        name: 'Find build to install',
+        cmd: function() {
+            foundVersionMain = 0;
+            foundVersionMinor = 0;
+            foundVersionData = 0;
+            targetD2DInstFile = '';
+            if(buildMountPath)
+                return 'ls "' + buildMountPath + '" | sort';
+            else return '';
+        },
+        expect: function(line) {
+            if(targetVersion) {
+                //we have a predifined version
+                var installerVersion = line.match(/^UDPLinux-(\d{4})\.(\d+)-(\d{8})\.bin/);
+                if(installerVersion) {
+                    if(parseInt(installerVersion[3]) >= foundVersionData) {
+                        foundVersionMain = parseInt(installerVersion[1]);
+                        foundVersionMinor = parseInt(installerVersion[2]);
+                        foundVersionData = parseInt(installerVersion[3]);
+                        targetD2DInstFile = line.trim();
+                    }
+                }
+                return;
+            }
+            var installerVersion = line.match(/^UDPLinux-(\d{4})\.(\d+)-(\d{8})\.bin/);
+            if(!installerVersion) return;
+            var verMain = parseInt(installerVersion[1]);
+            var verMinor = parseInt(installerVersion[2]);
+            var verdate = parseInt(installerVersion[3]);
+            if(verMain >= currentVersionMain && verMinor >= currentVersionMinor) {
+                if(foundVersionData <= verdate) {
+                    if(foundVersionMain <= verMain && foundVersionMinor <= verMinor) {
+                        foundVersionMain = verMain;
+                        foundVersionMinor = verMinor;
+                        foundVersionData = verdate;
+                        targetD2DInstFile = line.trim();
+                    }
+                }
+            }
+            return null;
+        },
+        critical: false
+    },
+    {
+        name: 'Uninstall current D2D',
+        cmd: function() {
+            uninstallSuccessful = false;
+            lineBuffer = '';
+            if(currentVersionMain && foundVersionMain && cleanInstall)
+                return '/opt/Arcserve/d2dserver/bin/d2duninstall; rm -rf /opt/Arcserve && rm -rf /opt/CA';
+            //else return 'rm -rf /opt/Arcserve; rm -rf /opt/CA; echo "Cleaned product dir."';
+            //else return 'rm -rf /opt/Arcserve/ && rm -rf /opt/CA/ && echo "Cleaned product dir.";';
+            else return "umount -lf /opt/Arcserve/d2dserver/tmp/cresvc/mnt/*; ps xo pid,cmd | grep /opt/Arcserve/d2dserver | grep -v grep | awk '{print $1}' | xargs kill -9; rm -rf /opt/Arcserve/; echo 'Cleaned product dir';";
+        },
+        monitor: function(newData) {
+            lineBuffer += newData;
+            if(lineBuffer.match(/\[y\|n\] \(default\: .\)/)) {
+                lineBuffer = '';
+                return 'y\n';
+            //} else if(lineBuffer.match(/was successfully removed\./) || lineBuffer.match(/Cleaned product dir/))
+            } else if(lineBuffer.match(/was successfully removed\./) || lineBuffer.match(/No need to uninstall/) || lineBuffer.match(/Cleaned product dir/))
+                uninstallSuccessful = true;
+            return null;
+        },
+        judgeSuccess: function(exitStatus) {
+            if(!uninstallSuccessful ||
+               (exitStatus !== 0))
+               return false;
+            else return true;
+        },
+        timeout: 3600,
+        critical: false
+    },
+    {
+        name: 'Install new D2D',
+        cmd: function() {
+            lineBuffer = '';
+            installSuccess = false;
+            if(targetVersion && targetD2DInstFile)
+                return 'mount --make-rshared /; "' + buildMountPath + '/' + targetD2DInstFile + '" --silent 2>/tmp/upgrade.trace.$(date +%s); /opt/Arcserve/d2dserver/bin/d2dserver start; exit 0;';
+            if((foundVersionMain >= currentVersionMain && foundVersionMinor > currentVersionMinor) && targetD2DInstFile)
+                return 'mount --make-rshared /; "' + buildMountPath + '/' + targetD2DInstFile + '" --silent 2>/tmp/upgrade.trace.$(date +%s); /opt/Arcserve/d2dserver/bin/d2dserver start; exit 0;';
+            return '';
+        },
+        judgeSuccess: function(exitStatus) {
+            if(!installSuccess ||
+                (typeof exitStatus == 'number' && exitStatus !== 0)) {
+                return false;
+            } else return true;
+        },
+        monitor: function(newData) {
+            lineBuffer += newData;
+            if(lineBuffer.match(/.*Arcserve.*was successfully installed./)) {
+                installSuccess = true;
+            }
+            if(lineBuffer.match(/Starting server \.{3}.*\[Completed\]/)) {
+                installSuccess = true;
+            }
+            if(lineBuffer.match(/Port.*is occupied.*then restart.*/)) {
+                installSuccess = true;
+            }
+            //if(lineBuffer.match(/.*is started./)) {
+            //    installSuccess = true;
+            //}
+            if(lineBuffer.match('product already exists on this machine.')) {
+                installSuccess = true;
+            }
+            if(lineBuffer.match(/This is not a supported platform\. Do you still want to continue with the installation\? \[y\|n\] \(default\: n\)/)) {
+                lineBuffer = '';
+                return 'y\n';
+            } else if(lineBuffer.match(/Would you like to upgrade\? \[y\|n\] \(default\: y\)/)) {
+                lineBuffer = '';
+                return 'y\n';
+            } else if(lineBuffer.match(/--More--\(\d+%\)/)) {
+                lineBuffer = '';
+                return 'q';
+            } else if(lineBuffer.match('Do you want to continue the installation process\\? \\[y\\|n\\] \\(default\\: n\\)')) {
+                lineBuffer = '';
+                return 'y\n';
+            } else if(lineBuffer.match(/.*register.*this.*Backup.*to.*UDP.*\(default\: n\)/)) {
+                lineBuffer = '';
+                return 'n\n';
+            } else if(lineBuffer.match(/.*still.*want.*to.*continue.*\(default\: n\)/)) {
+                lineBuffer = '';
+                return 'y\n';
+            }
+
+        },
+        ptyHeight: 300,
+        timeout: 3600,
+        critical: false
+    },
+    {
+        name: 'Clean up',
+        cmd: function() {
+            if(buildMountPath)
+                return 'umount "' + buildMountPath + '" && ' +
+                       'rmdir "' + buildMountPath + '" ; ' +
+                       '/opt/Arcserve/d2dserver/bin/d2dserver start ; ' +
+                       'curl https://127.0.0.1:8014 --insecure; exit 0;';
+            else return '';
+        },
+        critical: false
+    },
+]
+
+var onOperationFinish = function(step_results){
+    if(!foundVersionMain) {
+        foundVersionMain = currentVersionMain;
+        foundVersionMinor = currentVersionMinor;
+    }
+    if(foundVersionMain && buildLocation) {
+        if(!SUITE.get('Build Version:'))
+            SUITE.set('Build Version:', foundVersionMain + '.' + foundVersionMinor);
+        else if(!SUITE.get('Build Version:').match(foundVersionMain + '.' + foundVersionMinor))
+            SUITE.set(
+                'Build Version:',
+                SUITE.get('Build Version:') + '; ' + foundVersionMain + '.' + foundVersionMinor
+            );
+        if(!SUITE.get('Build Location:'))
+            SUITE.set('Build Location:', buildLocation + '');
+        else if(!SUITE.get('Build Location:').match(buildLocation))
+            SUITE.set(
+                'Build Location:',
+                SUITE.get('Build Location:') + '; ' + buildLocation
+            );
+    }
+    message = '';
+    passed = true;
+    for(var i = 0 ; i < step_results.length ; i ++) {
+        var step = step_results[i];
+        if(!step.passed) {
+            if(!step.critical) {
+                if(step.name == 'Install new D2D') {
+                    passed = false;
+                    message += 'Install new D2D failed!\n';
+                } else message += 'Non-critical step \'' + step.name + '\' failed.\n';
+            } else {
+                passed = false;
+                message += 'Vritical step \'' + step.name + '\' failed.\n';
+            }
+        }
+    }
+}
+declareOperation(expects, onOperationFinish);
+

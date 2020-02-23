@@ -1,0 +1,60 @@
+context = {
+    jobs_for_servers: {
+        'luvyu01-nfsvr': [
+            {
+                jobname: 'test restore',
+                targethost: '155.35.82.137',
+                targetuser: 'root',
+                targetpasswd: 'cnbjrdqa2#',
+                sessionlocation: 'luvyu01-nfsvr:/ns',
+                recoverypoint: '155.35.82.137/S0000000006',
+                compression: '1',
+                restoretargetdir: '/',
+                restoretooriginal: '1',
+                fileoption: '2',
+                //estimateoption: '0',
+                stripoption: '1',
+                restorefile: '/bin',
+            },
+            {
+                jobname: 'test restore',
+                targethost: '155.35.82.137',
+                targetuser: 'root',
+                targetpasswd: 'cnbjrdqa2#',
+                sessionlocation: 'luvyu01-nfsvr:/ns',
+                recoverypoint: '155.35.82.137/S0000000006',
+                compression: '1',
+                restoretargetdir: '/',
+                restoretooriginal: '1',
+                fileoption: '2',
+                //estimateoption: '0',
+                stripoption: '1',
+                restorefile: '/bin',
+            }
+        ],
+        'luvyu01-olsvr': [
+            {
+                jobname: 'test restore',
+                targethost: '155.35.82.137',
+                targetuser: 'root',
+                targetpasswd: 'cnbjrdqa2#',
+                sessionlocation: 'luvyu01-nfsvr:/ns',
+                recoverypoint: '155.35.82.137/S0000000006',
+                compression: '1',
+                restoretargetdir: '/',
+                restoretooriginal: '1',
+                fileoption: '2',
+                //estimateoption: '0',
+                stripoption: '1',
+                restorefile: '/bin',
+            }
+        ],
+    },
+}
+
+targets = [
+    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+];
+
+targets.doFileRestore(context);

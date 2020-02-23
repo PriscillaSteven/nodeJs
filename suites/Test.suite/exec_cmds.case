@@ -1,0 +1,36 @@
+context = {
+    cmds_for_servers: {
+        'luvyu01-olsvr': [
+            //'ls -lth /',
+            'echo OK',
+            //'',
+            //'sfaf'
+        ],
+        'luvyu01-s11364r': [
+            //'ls -lth /root',
+            'echo OK',
+            '',
+            {
+                cmd: 'echo 121 && read test1 && echo $test1',
+                expects: [ {waitFor: /121/, response: '212\n'} ]
+            }
+        ],
+        'luyu426-bbb': [
+            'ls -lth /root',
+            'echo OK',
+            '',
+            {
+                cmd: 'echo 121 && read test1 && echo $test1',
+                expects: [ {waitFor: /121/, response: '212\n'} ]
+            }
+        ],
+    }
+};
+
+targets = [
+    //{ host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    //{ host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luyu426-bbb', username: 'test', password: 'test' }
+];
+
+targets.execCmds(context);

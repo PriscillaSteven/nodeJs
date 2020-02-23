@@ -1,0 +1,15 @@
+declareOperation('object', function(target, param, onFinish) {    
+    var id = target.configName;
+    if(!id) id = target.host;
+    if(!id) id = Util.inspect(target);
+    Util.locks.set(id, { status: 'normal', date: Util.now.toJSON() }, function(err) {
+        if(err) {
+            passed = false;
+            update("[LOCK] failed to set lock: " + id + "\n" + err.stack + "\n");
+        } else {
+            passed = true;
+            //update("[LOCK] set lock " + id + "\n");
+            onFinish();
+        }
+    });
+});

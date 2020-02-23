@@ -1,0 +1,17 @@
+var Operation = require('./lib/models/Operation');
+Operation.put('luvyu01', 'ssh', 'exec', 'test content', 'test desc');
+Operation.put('luvyu01', 'user', 'defined', 'user defined operation', 'test desc');
+var put = null,
+    del = null;
+Operation.iterate('luvyu01', function(oper, _put, _del, stop) { 
+    console.dir(oper);
+    put = _put;
+    del = _del;
+    stop();
+}, function(err) {
+    if(err) console.log(err);
+    console.log('done');
+});
+
+put('cccc','dddd',function(err){console.log('done ' + err)});
+del(function(err){console.log('done ' + err)})

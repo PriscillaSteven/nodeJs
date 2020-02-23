@@ -1,0 +1,33 @@
+context = {
+    d2dnode: '/opt/CA/d2dserver/bin/d2dnode',
+    nodes_for_servers: {
+        'luvyu01-nfsvr': [
+            { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+            { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' }
+        ],
+        'luvyu01-olsvr': [
+            { host: 'luvyu01-pv6t', username: 'root', password: '123' } ,
+        ],
+        'luvyu01-rhel63': [
+            { host: 'luvyu01-c58x64xh', username: 'root', password: 'cnbjrdqa2#' } ,
+            { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' }
+        ],
+        'luvyu01-s11364': [
+            { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+            { host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' }
+        ],
+        'luvyu01-s11364r': [
+            { host: 'luvyu01-cos63', username: 'root', password: 'cnbjrdqa2#' }
+        ],
+    }
+}
+
+targets = [
+    { host: 'luvyu01-nfsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-olsvr', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-s11364r', username: 'root', password: 'cnbjrdqa2#' } ,
+    { host: 'luvyu01-rhel63', username: 'root', password: 'cnbjrdqa2#' }
+];
+
+targets.refreashNodes(context);

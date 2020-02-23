@@ -1,0 +1,107 @@
+<cre-search-list items="instance in historyTestList" 
+    empty-message="No Test History Found" filter="{ testDefinition: {
+        header: 'Filter Instances', 
+        placeholder: 'Test Definition Name' 
+    } }" order-by="'start'" reverse>
+    <cre-dynamic-list items="(sname, suite) in instance.suites"
+        type="{{(!instance.passed)? 'danger' : ''}}" list-style='panel'>
+        <div class='heading-transclude'>     
+            <span class='label' ng-class="{
+                'label-success' : instance.passed,
+                'label-danger' : !instance.passed
+            }">Test {{instance.passed ? 'Passed' : 'Failed'}}</span>
+            <span class='h5'>{{instance.testDefinition}}</span>
+            <div ng-if='instance.trigger && instance.env[instance.trigger]' class='h5 pull-right'>
+                <small>with&nbsp;</small>
+                <strong>{{instance.trigger}}</strong>
+                <small>&nbsp;@&nbsp;</small>
+                <strong>{{instance.env[instance.trigger]}}</strong>
+            </div>
+            <div class='h5 pull-right'>
+                <small>launched&nbsp;on&nbsp;</small>
+                <strong>{{instance.start | date:'yyyy-MM-dd HH:mm:ss.sss'}}</strong>
+                <small>&nbsp;</small>
+            </div>
+        </div>
+        <div class='body-transclude'>
+            <em><strong>{{instance.passedSuitesNum}}</strong> out of <strong>{{instance.totalSuitesNum}}</strong> suites passed: </em>
+        </div>                    
+        <cre-dynamic-list items="case_ in suite.cases"
+            type="{{(!suite.passed) ? 'danger' : ''}}" list-style='panel'>
+            <div class='heading-transclude'>
+                <span class='label' ng-class="{
+                    'label-success' : suite.passed,
+                    'label-danger' : !suite.passed
+                }">Suite {{suite.passed ? 'Passed' : 'Failed'}}</span>
+                <span class='h5'>{{sname}}</span>
+                <div class='h5 pull-right'>
+                    <small>launched&nbsp;on&nbsp;</small>
+                    <strong>{{suite.start | date:'yyyy-MM-dd HH:mm:ss.sss'}}</strong>
+                    <small>&nbsp;</small>
+                </div>
+            </div>
+            <div class='body-transclude'>
+                <em><strong>{{suite.passedCasesNum}}</strong> out of <strong>{{suite.totalCasesNum}}</strong> cases passed: </small></em>
+            </div>
+            <cre-dynamic-list items="operation in caseInfoCache[case_.id].operations"
+                list-expanded="requestCaseInfo(instance, suite, case_)" list-style='panel'
+                list-collapsed="requestCaseInfo(instance, suite, case_, true)" 
+                type="{{(!case_.passed) ? 'danger' : ''}}">
+                <div class='heading-transclude'>
+                    <span class='label' ng-class="{
+                        'label-success' : case_.passed,
+                        'label-danger' : !case_.passed
+                    }">Case {{case_.passed ? 'Passed' : 'Failed'}}</span>
+                    <span class='h5'>{{case_.name}}</span>
+                    <div class='h5 pull-right'>
+                        <small>launched&nbsp;on&nbsp;</small>
+                        <strong>{{case_.start | date:'yyyy-MM-dd HH:mm:ss.sss'}}</strong>
+                        <small>&nbsp;</small>
+                    </div>
+                </div>
+                <div class='body-transclude'>
+                   <!-- {{case_|json}} -->
+                    <em>Operations: </em>
+                </div>
+                <cre-dynamic-list items="step in operationInfoCache[operation.id].steps"
+                    list-style='panel' type="{{(operation.passed === false) ? 'danger' : ''}}"
+                    list-expanded="requestOperInfo(instance, suite, case_, operation)"
+                    list-collapsed="requestOperInfo(instance, suite, case_, operation, true)"
+                    ng-if="operation.started">
+                    <span class='h5 heading-transclude'>
+                        <span class='label' ng-class="{
+                            'label-success' : operation.passed,
+                            'label-danger' : !operation.passed
+                        }">Operation {{operation.passed ? 'Passed' : 'Failed'}}</span>
+                        <span class='label label-default'>{{operation.type}}</span>
+                        <span class='label' ng-class="{
+                            'label-primary' : !operation.async,
+                            'label-info' : operation.async
+                        }" ng-if='operation.type === "ssh"'>{{operation.async ? 'Async' : 'Sync'}}</span>
+                        <span class='label label-primary' ng-click='openConsole(operation.target)' ng-if='operation.type === "ssh"'>{{operation.target.host}}&nbsp;&nbsp;<i class='glyphicon glyphicon-new-window'></i></span>
+                        {{operation.name}}
+                    </span>
+                    <span class='h5 heading-transclude pull-right'>
+                        <small>{{operation.message || 'No detailed message.'}}</small>
+                    </span>
+                    <span class='body-transclude' 
+                        ng-if="!operationInfoCache[operation.id].steps || 
+                            operationInfoCache[operation.id].steps.length === 0">
+                        <em>No steps found in this operation.</em>
+                    </span>
+                    <span class='body-transclude' 
+                        ng-if="operationInfoCache[operation.id].steps && 
+                            operationInfoCache[operation.id].steps.length > 0">
+                        <!-- {{operation}} -->
+                        <em>Steps:</em>
+                    </span>
+                    <cre-ssh-step-detail id="step.id" name="step.name" passed="step.passed"
+                        cmd="step.cmd" start="step.start" end="step.end" critical="step.critical"
+                        exit-status="(step.exitSignal || step.exitCode)" 
+                        on-request-detail="requestSSHStepDetail(step)">
+                    </cre-ssh-step-detail>
+                </cre-dynamic-list>                     
+            </cre-dynamic-list>
+        </cre-dynamic-list>
+    </cre-dynamic-list>
+</cre-search-list>

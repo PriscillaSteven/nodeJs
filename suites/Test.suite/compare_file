@@ -1,0 +1,12 @@
+// Compare restored file and backuped original file
+var targets = [ { 
+    host: server_name,
+    username: server_user,
+    password: server_pass
+} ];
+
+targets.compareFile({
+    target_file_list: { 
+        'luvyu01-s11364': [orig_file_name, orig_file_name + '.before_restore']
+    }
+})

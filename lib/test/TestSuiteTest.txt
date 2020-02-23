@@ -1,0 +1,16 @@
+var T = require('./lib/models/TestSuite');
+T.put('luvyu01', 'ssh', 'test content', 'test desc');
+var put = null,
+    del = null;
+T.iterate('luvyu01', function(oper, _put, _del, stop) { 
+    console.dir(oper);
+    put = _put;
+    del = _del;
+    stop();
+}, function(err) {
+    if(err) console.log(err);
+    console.log('done');
+});
+
+put('cccc', 'dddd',function(err){console.log('done ' + err)});
+del(function(err){console.log('done ' + err)});

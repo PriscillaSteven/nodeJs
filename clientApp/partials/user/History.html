@@ -1,0 +1,19 @@
+<div ng-controller="creUserHistory">
+	<h4>Running Test Instances</h4>
+	<hr>
+    <div ng-include="'$$$$$00/HistoryRunning'"></div>
+	<hr>
+	<h4>History Test Instances</h4>
+	<hr>
+	<div class="input-group">
+		<span class="input-group-addon">From</span>
+        <input type="text" class="form-control" datepicker-popup="yyyy/MM/dd" show-button-bar="false" ng-model="currentSearchRange.from" ng-required="true"/>
+		<span class="input-group-addon">To</span>
+        <input type="text" class="form-control" datepicker-popup="yyyy/MM/dd" show-button-bar="false" ng-model="currentSearchRange.to" ng-required="true"/>
+        <span class="input-group-btn">
+            <button class="btn btn-default" ng-click="searchTests()">Search</button>
+        </span>
+    </div> 
+    <hr>
+    <div ng-include="'$$$$$00/HistoryFinished'"></div>
+</div>

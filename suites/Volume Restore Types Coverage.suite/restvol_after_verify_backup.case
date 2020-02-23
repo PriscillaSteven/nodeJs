@@ -1,0 +1,175 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var checkVol = function(vol) {
+        return  { 
+            cmd: 'umount -f "' + vol + '" ; echo $? && ' + 
+                 //'mkfs.ext3 "' + vol + '" && ' + 
+                 'mount "' + vol + '"',  
+            async: true
+        };
+    },
+    nfsPath = '155.35.103.143:/NFS',
+    serverHost = 'mabji01-sl10sp4x86-2',
+    prepareFiles1 = [ 'umount -f /CRE_ROOT ; echo $?', 'mount "' + nfsPath + '" /CRE_ROOT ; echo $?']
+                    .concat(checkVol('/dev/mapper/mabji01vg_mbr-mabji01lv_linear_mbr'))
+                    .concat(checkVol('/dev/mapper/mabji01vg_mbr-mabji01lv_striped_mbr'))
+                    .concat(checkVol('/dev/mapper/mabji01vg_mbr-mabji01lv_mirror_mbr'))
+                    .concat(checkVol('/dev/mapper/mabji01vg_gpt-mabji01lv_linear_gpt'))
+                    .concat(checkVol('/dev/mapper/mabji01vg_gpt-mabji01lv_striped_gpt'))
+                    .concat(checkVol('/dev/mapper/mabji01vg_gpt-mabji01lv_mirror_gpt'))
+                    .concat(checkVol('/dev/md0'))
+                    .concat(checkVol('/dev/md1'))
+                    .concat(checkVol('/dev/md2'))
+                    .concat(checkVol('/dev/md3'))
+                    .concat(checkVol('/dev/md4'))
+                    .concat(checkVol('/dev/md5')),
+    prepareFiles2 = [
+        'time dd if=/dev/urandom of=/tmp/restvol_file bs=1M count=150',
+        'cp -p /tmp/restvol_file /lvm_linear_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /lvm_striped_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /lvm_mirror_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /lvm_linear_test_gpt/restvol_file', 
+        'cp -p /tmp/restvol_file /lvm_striped_test_gpt/restvol_file', 
+        'cp -p /tmp/restvol_file /lvm_mirror_test_gpt/restvol_file', 
+        'cp -p /tmp/restvol_file /raid0_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /raid1_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /raid5_test_mbr/restvol_file', 
+        'cp -p /tmp/restvol_file /raid0_test_gpt/restvol_file', 
+        'cp -p /tmp/restvol_file /raid1_test_gpt/restvol_file', 
+        'cp -p /tmp/restvol_file /raid5_test_gpt/restvol_file', 
+        'echo "/tmp/core.%p" > /proc/sys/kernel/core_pattern',
+        'echo "1" > /proc/sys/kernel/core_uses_pid',
+    ],
+    changeFiles = [
+        'time dd if=/dev/urandom of=/lvm_linear_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/lvm_striped_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/lvm_mirror_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/lvm_linear_test_gpt/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/lvm_striped_test_gpt/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/lvm_mirror_test_gpt/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid0_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid1_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid5_test_mbr/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid0_test_gpt/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid1_test_gpt/restvol_file bs=1M count=10', 
+        'time dd if=/dev/urandom of=/raid5_test_gpt/restvol_file bs=1M count=10', 
+    ],
+    mountVols = [
+        'mount /lvm_linear_test_mbr',    
+        'mount /lvm_striped_test_mbr',    
+        'mount /lvm_mirror_test_mbr',    
+        'mount /lvm_linear_test_gpt',    
+        'mount /lvm_striped_test_gpt',    
+        'mount /lvm_mirror_test_gpt',    
+        'mount /raid0_test_mbr',    
+        'mount /raid1_test_mbr',    
+        'mount /raid5_test_mbr',    
+        'mount /raid0_test_gpt',    
+        'mount /raid1_test_gpt',    
+        'mount /raid5_test_gpt'
+    ],
+    umountVols = [
+        'umount /lvm_linear_test_mbr',    
+        'umount /lvm_striped_test_mbr',    
+        'umount /lvm_mirror_test_mbr',    
+        'umount /lvm_linear_test_gpt',    
+        'umount /lvm_striped_test_gpt',    
+        'umount /lvm_mirror_test_gpt',    
+        'umount /raid0_test_mbr',    
+        'umount /raid1_test_mbr',    
+        'umount /raid5_test_mbr',    
+        'umount /raid0_test_gpt',    
+        'umount /raid1_test_gpt',    
+        'umount /raid5_test_gpt',    
+    ],
+    compareFileList = [
+        '/tmp/restvol_file',
+        '/lvm_linear_test_mbr/restvol_file',
+        '/lvm_striped_test_mbr/restvol_file',
+        '/lvm_mirror_test_mbr/restvol_file',
+        '/lvm_linear_test_gpt/restvol_file',
+        '/lvm_striped_test_gpt/restvol_file',
+        '/lvm_mirror_test_gpt/restvol_file',
+        '/raid0_test_mbr/restvol_file',
+        '/raid1_test_mbr/restvol_file',
+        '/raid5_test_mbr/restvol_file',
+        '/raid0_test_gpt/restvol_file',
+        '/raid1_test_gpt/restvol_file',
+        '/raid5_test_gpt/restvol_file',
+    ],
+    vol = function(v) {
+        return {
+            sessionsLocation: '/CRE_ROOT', 
+            origVol: v, 
+        }
+    },
+    rconfig = {
+        jobtype: 'restvol-async', //default: monitor, valid options are: 'monitor', 'restvol-sync' and 'restvol-async'.
+        volumes: [
+            vol('/dev/mapper/mabji01vg_mbr-mabji01lv_linear_mbr'),
+            vol('/dev/mapper/mabji01vg_mbr-mabji01lv_striped_mbr'),
+            vol('/dev/mapper/mabji01vg_mbr-mabji01lv_mirror_mbr'),
+            vol('/dev/mapper/mabji01vg_gpt-mabji01lv_linear_gpt'),
+            vol('/dev/mapper/mabji01vg_gpt-mabji01lv_striped_gpt'),
+            vol('/dev/mapper/mabji01vg_gpt-mabji01lv_mirror_gpt'),
+            vol('/dev/md0'),
+            vol('/dev/md1'),
+            vol('/dev/md2'),
+            vol('/dev/md3'),
+            vol('/dev/md4'),
+            vol('/dev/md5'), 
+        ]
+    },
+    bscript = {
+        jobname: 'RestVol Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'caworld1!',
+        sessionlocation: nfsPath,
+        compression: 1,
+        //excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    rscript = {
+        jobname: 'RestVol Auto: Restore',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'caworld1!',
+        sessionlocation: nfsPath,
+        compression: '1',
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        restorefile:  [
+            '/lvm_linear_test_mbr/restvol_file',
+            '/lvm_striped_test_mbr/restvol_file',
+            '/lvm_mirror_test_mbr/restvol_file',
+            '/lvm_linear_test_gpt/restvol_file',
+            '/lvm_striped_test_gpt/restvol_file',
+            '/lvm_mirror_test_gpt/restvol_file',
+            '/raid0_test_mbr/restvol_file',
+            '/raid1_test_mbr/restvol_file',
+            '/raid5_test_mbr/restvol_file',
+            '/raid0_test_gpt/restvol_file',
+            '/raid1_test_gpt/restvol_file',
+            '/raid5_test_gpt/restvol_file',
+        ]
+    },
+    server = $({ host: serverHost, username: 'root', password: 'caworld1!' });
+
+//////////////////////////////////////////////////////
+///////////////////////RUN CASE///////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFiles1 })
+      .exec({ cmds: prepareFiles2 })
+      .backup({ verify: bscript })
+      //.exec({ cmds: changeFiles })
+      //.restore({ file: flrJobs1 })
+      //.restore({ file: flrJobs2 })
+      //.stat({ files: compareFileList, to: 'Compare' });
+      .exec({ cmds: changeFiles })
+      .exec({ cmds: umountVols })
+      .restore({ vol: rconfig })
+      .restore({ vol: { jobtype: 'monitor' } })
+      .exec({ cmds: mountVols })
+      .stat({ files: compareFileList, to: 'Compare' });
+compare(compareFileList.map(function(file) { return [serverHost, file]; }));

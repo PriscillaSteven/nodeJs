@@ -1,0 +1,16 @@
+var Util = require('./lib/Util.js'),
+    Automator = require('./lib/automator'),
+    TestHistory = require('./lib/models/TestHistory'),
+    TestStatusLog = require('./lib/models/TestStatusLog'),
+    User = require('./lib/models/User'),
+    Operation = require('./lib/models/Operation'),
+    Case = require('./lib/models/Case'),
+    TestDefinition = require('./lib/models/TestDefinition');
+    
+var me = new User('luvyu01'),
+    A = require('./lib/AutomationService');
+
+var instanceID = A.createTestInstance(me, 'test');
+A.on(instanceID, function(msg) { console.dir(msg); });
+
+TestHistory.recent.each(function(d){console.log(util.inspect(d,{depth:3}))});

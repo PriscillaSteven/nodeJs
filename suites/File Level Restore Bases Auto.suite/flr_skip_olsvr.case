@@ -1,0 +1,42 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origFile = '/tmp/orig_file',
+    nfsPath = 'luvyu01-nfsvr:/ns',
+    serverHost = 'luvyu01-olsvr',
+    prepareFile = [
+        'time dd if=/dev/urandom of="' + origFile + '" bs=1M count=100',
+        'time dd if=/dev/urandom of="' + origFile + '_sec" bs=1M count=100',
+    ],
+    bscript = {
+        jobname: 'FLR Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: 1,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    rscript = {
+        jobname: 'FLR Auto: Restore',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        compression: '1',
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        fileoption: '3', // 1: overwrite; 2: duplicate; 3: skip; 
+        restorefile: origFile,
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+/////////////////////////CASE/////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFile })
+      .backup({ incremental: bscript })
+      .exec({ cmds: [ 'cp -p -f "' + origFile + '_sec" "' + origFile + '"' ] })
+      .restore({ file: rscript })
+      .stat({ files: [origFile, origFile + '_sec'] , to: 'Compare'});
+compare([ [serverHost, origFile], [serverHost, origFile + '_sec'] ]);

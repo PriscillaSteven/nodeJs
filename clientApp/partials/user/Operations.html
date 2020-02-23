@@ -1,0 +1,56 @@
+<div ng-controller="creUserOperations">
+    <accordion close-others='false'>
+        <accordion-group is-open="customOpen" ng-init="customOpen = true">                    
+            <accordion-heading>
+                Custom Operations <small>will override builtin ones</small>
+                <i class="pull-right glyphicon" ng-class="{'glyphicon-chevron-down': customOpen, 'glyphicon-chevron-right': !customOpen}"></i>
+            </accordion-heading>
+            <cre-search-list items="oper in allCustomOperations"  order-by="['type', 'name']"
+                 filter="{ name: { header: 'Filter Operation', placeholder: 'Name' }, type: { header: 'Of', placeholder: 'Type' } }" 
+                 actions="[{name: 'Create New Operation', action: 'popupAddNewOper()'}]" 
+                 empty-message="No Custom Operations Found">
+                <div class="panel panel-default">
+                    <div class='panel-heading'>
+                        <span class='label label-default'>{{oper.type}}</span>  
+                        <span>{{oper.name}}</span>  
+                        <div class="btn-group pull-right">
+                            <button type="button" class="btn btn-xs disabled">
+                                &nbsp;Last modify: {{oper.modification | date:'yyyy-MM-dd HH:mm:ss.sss'}}
+                            </button>
+                            <button class="btn btn-xs btn-info" ng-click='popupDeleteOper(oper)'>
+                                &nbsp;&nbsp;Delete&nbsp;&nbsp;
+                                <i class="glyphicon glyphicon-trash"></i>
+                            </button>
+                            <button type="button" class="btn btn-xs btn-primary" ng-click='popupEditOper(oper)'>
+                                &nbsp;&nbsp;Edit&nbsp;&nbsp;
+                                <i class="glyphicon glyphicon-pencil"></i>
+                            </button>
+                        </div>                            
+                    </div>    
+                </div>             
+            </cre-search-list>      
+        </accordion-group>
+        <accordion-group is-open='builtinOpen'>                    
+            <accordion-heading>
+                Builtin Operations
+                <i class="pull-right glyphicon" ng-class="{'glyphicon-chevron-down': builtinOpen, 'glyphicon-chevron-right': !builtinOpen}"></i>
+            </accordion-heading>   
+            <cre-search-list items="oper in allBuiltinOperations" order-by="['type', 'name']"
+                 filter="{ name: { header: 'Filter Operation', placeholder: 'Name' }, type: { header: 'Of', placeholder: 'Type' } }" 
+                 empty-message="No Builtin Operations Found">
+                <div class="panel panel-default">
+                    <div class='panel-heading'>
+                        <span class='label label-default'>{{oper.type}}</span>  
+                        <span>{{oper.name}}</span>  
+                        <div class="btn-group pull-right">
+                            <button type="button" class="btn btn-xs disabled">Builtin</button>
+                            <button type="button" class="btn btn-xs btn-primary" ng-click='popupShowBuiltinOper(oper)'>View
+                                <i class="glyphicon glyphicon-eye-open"></i>
+                            </button>
+                        </div>                            
+                    </div>   
+                </div>
+            </cre-search-list> 
+        </accordion-group>
+    </accordion>
+</div>

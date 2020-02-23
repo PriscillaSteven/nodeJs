@@ -1,0 +1,73 @@
+// Parameters: {
+//     vm: string,
+//     snapshot: string
+// }
+
+var expects = [
+    {
+        name: 'List all VMs',
+        cmd: function() {
+        	if(typeof vm == "undefined" || typeof snapshot == "undefined") {
+        		return "echo 'Invalid parameters, vm & snapshot required.'; exit 1"
+        	}
+            return 'vim-cmd vmsvc/getallvms';
+        },
+        expect: function(line) {
+		if(typeof targetvm == "undefined") {        		
+	            var vmmatch = line.match(/^(\d+)\s+([^\s]+)\s+(\[.*\] [^\s]+)\s+([^\s]+)\s+([^\s]+)\s{2}(.+)/)
+	            if(vmmatch && vmmatch[2] == vm) {
+	            	targetvm = {
+	            		vmid: vmmatch[1] ? vmmatch[1].trim() : '',
+	            		name: vmmatch[2] ? vmmatch[2].trim() : '',
+	            		file: vmmatch[3] ? vmmatch[3].trim() : '',
+	            		guest: vmmatch[4] ? vmmatch[4].trim() : '',
+	            		version: vmmatch[5] ? vmmatch[5].trim() : '',
+	            		anno: vmmatch[6] ? vmmatch[6].trim() : '',
+	            	};
+	            }
+        	}
+        },
+        next: "List VM's Snapshots",
+        critical: true
+    },
+    {
+        name: "List VM's Snapshots",
+        cmd: function() {
+        	if(typeof targetvm == "undefined")
+        		return "echo 'Failed to find provided vm: " + vm + "'; exit 1"
+        	return "vim-cmd vmsvc/snapshot.get " + targetvm.vmid;
+        },
+        expect: function(line) {
+        	if(typeof snapshot_found == "undefined") 
+        		snapshot_found = false;
+        	if(line.match(/-+Snapshot Name/)) {
+        		sname = line.split(':')[1]
+        		if(sname && sname.trim() == snapshot)
+        			snapshot_found = true;
+        	} else if(line.match(/-+Snapshot Id/)) {
+        		if(snapshot_found) {
+        			snapshot_found = false;
+        			sid = line.split(':')[1]
+        			if(sid) 
+        				targetvm.snapshot = sid.trim();
+        		}
+        	}
+        },
+        next: "Revert Snapshot"
+    },
+    {
+        name: "Revert Snapshot",
+        cmd: function() {
+        	if(typeof targetvm == "undefined")
+        		return "echo 'Failed to find provided vm: " + vm + "'; exit 1"
+        	else if(typeof targetvm.snapshot == "undefined")
+        		return "echo 'Failed to find provided snapshot: " + snapshot + "'; exit 1"
+        	else return "vim-cmd vmsvc/snapshot.revert " + targetvm.vmid + " " + targetvm.snapshot + " true";
+        },
+        timeout: 3600,
+        critical: true
+    }
+];
+
+declareOperation(expects);
+

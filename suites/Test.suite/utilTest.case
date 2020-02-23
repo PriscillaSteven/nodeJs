@@ -1,0 +1,23 @@
+
+set({ path: 'test', value: true });
+set({ path: ['root','sub1','target'], value: 'teststring' });
+dump();
+set({ path: ['root','sub','target'], value: 'teststring' });
+dump();
+set({ path: ['root','sub1','target1'], value: 'teststring1' });
+set({ path: ['root','target'], value: { prop: '123' , test: true} });
+set({ path: ['root1','target'], value: { prop: '123' } });
+set({ path: ['root1','target1'], value: { prop: '123' } });
+
+dump();
+
+$([ ['root','sub','target'],
+    'test',
+    ['root','sub1','target'],
+    ['root','sub1','target1'],
+]).compare();
+
+$([ ['root','target'],
+    ['root1','target'],
+    ['root1','target1']
+]).compare({ ignoreProps: ['test'] });

@@ -1,0 +1,7 @@
+var TestStatusLog = require('./lib/models/TestStatusLog.js')
+TestStatusLog.recent.each(function(status, put, del, stop) {
+    console.dir(status);
+    console.log(put.toString());
+    console.log(del.toString());
+    console.log(stop.toString());
+});

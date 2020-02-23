@@ -1,0 +1,12 @@
+{
+    "host": "smtp.office365.com",
+    "port": "587",
+    "auth": {
+        "user": "Automation@Arcservemail.onmicrosoft.com",
+        "pass": "Boxa6033"
+    },
+    "from": "Automation@arcserve.com",
+     "to": "Team-CTC-Arcserve-Scrum-Linux@arcserve.com"
+
+}
+

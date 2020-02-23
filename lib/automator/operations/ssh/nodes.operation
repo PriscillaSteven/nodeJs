@@ -1,0 +1,96 @@
+// Parameters: {
+//     add: [
+//         { host: 'server2', username: 'root', password: 'password2' } ,
+//         { host: 'server3', username: 'root', password: 'password3' }
+//     ],
+//   OR
+//     remove: [ 'server2', 'server2' ]
+// }
+
+declareOperation([
+    {
+        cmd: '',
+        next: function() {
+            operationList = [];
+            if(typeof add !== 'undefined') {
+                if(Array.isArray(add)) add.forEach(function(target) {
+                    target.command = 'add';
+                    operationList.push(target)
+                });
+                else {
+                    add.command = 'add';
+                    operationList.push(add);
+                }
+            } 
+            if(typeof remove !== 'undefined') {
+                if(Array.isArray(remove)) remove.forEach(function(target) {
+                    operationList.push({host: target})
+                });
+                else operationList.push({host: remove});
+            }
+            if(operationList.length <= 0) return -1;
+            else return (this.index + 1);
+        }
+    },
+    { 
+        name: 'List current nodes on server',
+        cmd: function() { 
+            return 'source /opt/Arcserve/d2dserver/bin/setenv && ' + 
+                   'd2dnode --list'; 
+        },
+        expect: function(line) {
+            if(line.match(
+                'Node Name, User Name, Job Name, ' + 
+                'Operating System, Description'))
+                return;
+            var node = line.split(',');
+            if(node.length == 5) { 
+                operationList.forEach(function(target) {
+                    if(target.host.trim() === node[0].trim()) {
+                        if(target.command === 'add')
+                            target.command = 'modify';
+                        else target.command = 'delete';
+                    }
+                });
+            }
+        },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus == 0 || exitStatus == 1)
+                return true;
+            else return false;
+        }
+    },
+    {
+        name: 'Operate on one node',
+        cmd: function() {
+            if(typeof currNodeIdx == 'undefined') currNodeIdx = 0;
+            var node = operationList[currNodeIdx],
+                cmdstr = 'source /opt/Arcserve/d2dserver/bin/setenv && d2dnode';
+            if(!node.command) return '';
+            else cmdstr += ' --' + node.command + '="' + node.host + '"';
+            if(node.username) cmdstr += ' --user="' + node.username + '"';
+            if(node.password) cmdstr += ' --password="' + node.password + '"';
+            if(node.force) cmdstr += ' --force'
+            return cmdstr;
+        },
+        expect: function(line) {
+            if(line.match(/[Ss]uccess/))
+                this.success = true;
+            return null;
+        },
+        judgeSuccess: function(exitStatus) {
+            if(exitStatus == 0 && this.success)
+                return true;
+            else return false;
+        },
+        next: function() {
+            if(currNodeIdx === (operationList.length - 1))
+                return (this.index + 1);
+            else {
+                currNodeIdx += 1;
+                return this.index;
+            }
+        },
+        timeout: 600
+    }
+]);

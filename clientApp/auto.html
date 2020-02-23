@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Automation Database Inspector</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/FileSaver.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creSearchList.js'></script>
+        <script src='/public/creDynamicList.js'></script>
+        <script src='/public/creAutoDB.js'></script>
+        <script src='/public/creNotifier.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <!--[if IE]>
+        <script>
+          document.createElement('cre-dynamic-list');
+          document.createElement('cre-search-list');
+          document.createElement('cre-terminal');
+          document.createElement('cre-ssh-step-detail');
+        </script>
+        <![endif]-->
+    </head>
+    <body>            
+        <div id="ng-app" ng-app="creAutoDBApp" ng-controller="creAutoDBMain" class="container">
+            <h1>Automation Database</h1>
+            <span ng-if="!ready">
+                <strong>Preparing ...</strong>
+            </span>
+            <hr ng-if="ready">
+            <div class="row" ng-if="ready">
+                <span>
+                    <strong ng-if="bqsetsStatus == RETRIVING || bqsetsStatus == DONE">Retriving registered BQ sets ...</strong>
+                    <strong ng-if="bqsetsStatus == INIT">Click to retrive BQ sets.</strong>
+                </span>
+                <span ng-if="bqsetsStatus == DONE">
+                    <strong> done! </strong>
+                    Total <strong>{{bqsetsEntries.length}}</strong> entries retrived.
+                </span>
+                <span class="pull-right" ng-if="bqsetsStatus == INIT">
+                    <button ng-click="loadDB(bqsetsDBName)" class="btn btn-default" >Retrive</button>
+                </span>
+                <span class="pull-right" ng-if="bqsetsStatus == DONE">
+                    <button ng-click="downloadAllBQSetsAsCSV()" ng-disabled="bqsetsStatus == DOWNLOADINGCSV" class="btn btn-default" >Download All</button>
+                </span>
+            </div>
+            <hr ng-if="ready"> 
+            <div class="row" ng-if="ready">
+                <span>
+                    <strong ng-if="bqinfoStatus == RETRIVING || bqinfoStatus == DONE">Retriving BQ status information ...</strong>
+                    <strong ng-if="bqinfoStatus == INIT">Click to retrive BQ status information.</strong>
+                </span>
+                <span ng-if="bqinfoStatus == DONE">
+                    <strong> done! </strong>
+                    Total <strong>{{bqinfoEntries.length}}</strong> entries retrived.
+                </span>
+                <div class="input-group">
+                    <span class="input-group-addon">When Build Number Contains</span>
+                    <input class="form-control disabled" ng-disabled="bqinfoStatus != INIT" ng-model="bqinfoFilter">
+                </div>
+                <span class="pull-right" ng-if="bqinfoStatus == INIT">
+                    <button ng-click="loadDB(bqinfoDBName, 'buildnumber', bqinfoFilter)" class="btn btn-default" >Retrive</button>
+                </span>
+                <span class="pull-right" ng-if="bqinfoStatus == DONE">
+                    <button ng-click="downloadAllBQInfoAsCSV()" ng-disabled="bqinfoStatus == DOWNLOADINGCSV" class="btn btn-default" >Download All</button>
+                </span>
+            </div>
+            <hr ng-if="ready">
+           <!--  <div class="row" ng-if="ready">
+                <span>
+                    <strong>Loading BQ status...</strong>
+                </span>
+                <span ng-if="done">
+                    <strong> done! </strong>
+                    Currently total <strong>{{conf.currentFilteredItemCount}}</strong> entries displayed.
+                </span>
+                <span class="pull-right" ng-if="done">
+                    <button ng-click="downloadAllAsCSV()" class="btn btn-default" >Download All</button>
+                </span>
+            </div>
+            <hr> -->
+            <!-- div class="row">
+                <cre-search-list items="entry in entries" empty-message="No Entries" save-count="conf.currentFilteredItemCount"
+                    filter="{ set_name: { header: 'Filter Entries', placeholder: 'Name' }, set_owner: { header: 'By', placeholder: 'Owner' }, qateam: { header: 'In', placeholder: 'QA Team' }, set_type: { header: 'With', placeholder: 'Priority' } }">
+                    <cre-dynamic-list initial-open='true'>
+                        <span class="heading-transclude label label-success">{{entry.set_type}}</span>
+                        <span class="heading-transclude">{{entry.set_name}} <strong>owned by</strong> {{entry.set_owner}} <strong>in team</strong> {{entry.qateam}}</span>
+                        <span class="heading-transclude pull-right">
+                            <button ng-click="popupEntryDetail(entry)"
+                            class="btn btn-xs btn-default">Detail</button>
+                        </span>
+                    </cre-dynamic-list>
+                </cre-search-list> 
+            </div -->                    
+            <cre-notifier info-event="notifyInfo" error-event="notifyError">
+            </cre-notifier>
+        </div> 
+    </body>
+</html>

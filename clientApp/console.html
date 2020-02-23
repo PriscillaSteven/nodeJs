@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Console</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="/public/bootstrap-css/css/bootstrap.css">
+        <link rel="stylesheet" href="/public/cre.css"/>
+        <script src="/public/socket.io-client/dist/socket.io.js"></script>
+        <script src="/public/term.js"></script>
+        <script src="/public/ace-builds/src-min-noconflict/ace.js"></script>
+        <script src="/public/eventEmitter/EventEmitter.js"></script>
+        <script src="/public/angular/angular.js"></script>
+        <script src="/public/angular-animate/angular-animate.js"></script>
+        <script src="/public/angular-ui-utils/ui-utils.js"></script>
+        <script src="/public/angular-ui-ace/ui-ace.js"></script>
+        <script src='/public/angular-bootstrap/ui-bootstrap-tpls.js'></script>
+        <script src='/public/creServices.js'></script>
+        <script src='/public/creNotifier.js'></script>
+        <script src='/public/creTerminal.js'></script>
+        <script src='/public/consoleApp.js'></script>
+        <script src='/public/util.js'></script>
+        <script>
+            // document.write(
+            //         '<script src="http://'
+            //         + (location.host || 'localhost').split(':')[0]
+            //         + ':35729/livereload.js"></'
+            //         + 'script>'
+            // );
+        </script>
+        <style>
+            html { height: 100%; margin: 0; padding: 0; }
+            body { height: 100%; overflow-y: hidden; }
+        </style>
+    </head>
+    <body ng-app="creConsoleApp" ng-controller="creConsoleMain">            
+        <div style="background: red;" ng-style="{
+            'height': termHeight + 'px',
+            'width': termWidth + 'px'
+        }">
+            <cre-terminal style="height: 100%; width: 100%; border: none;"
+                title-event="titleChange" resize-event="termResized"
+                in-event="serverData" out-event="userInput" no-title-bar>
+            </cre-terminal>
+            <cre-notifier info-event="notifyInfo" error-event="notifyError">
+            </cre-notifier>
+        </div>
+    </body>
+</html>

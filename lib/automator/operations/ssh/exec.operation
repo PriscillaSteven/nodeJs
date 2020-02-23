@@ -1,0 +1,87 @@
+// Parameters: {
+//     cmds: [
+//         'ls',
+//         { cmd: 'echo 123', expects: [['123','']]},
+//         'exit1',
+//         ...
+//     ]
+// }
+var expects = [
+    {
+        cmd: function() {
+            if(typeof cmdIdx !== 'number') cmdIdx = 0;
+            if(typeof cmd === 'string') return cmd;
+            if(typeof cmds === 'undefined') 
+                return 'echo "No cmds defined" ; exit 1';
+            if(typeof cmds[cmdIdx] == 'string') 
+                return cmds[cmdIdx];
+            else if(typeof cmds[cmdIdx].cmd == 'string') 
+                return cmds[cmdIdx].cmd;
+        },
+        expect: function(line) {
+            if(typeof cmd === 'string') return;
+            if(typeof cmds[cmdIdx].saveToSummary === 'string') {
+                var prev = SUITE.get(cmds[cmdIdx].saveToSummary);
+                if(prev) SUITE.set(cmds[cmdIdx].saveToSummary, prev + line);
+                else SUITE.set(cmds[cmdIdx].saveToSummary, line);
+            }
+            if(!Array.isArray(cmds[cmdIdx].expects)) return;
+            for(var i = 0; i < cmds[cmdIdx].expects.length; i ++) {
+                var expect = cmds[cmdIdx].expects[i];
+                if(Array.isArray(expect) && (expect.length == 2)){
+                    if(line.match(expect[0])) return expect[1];
+                } else if(expect.waitFor && expect.response) {
+                    if(line.match(expect.waitFor)) return expect.response;
+                }
+            }
+        },
+        next: function() {
+            if(typeof cmd === 'string') return (this.index + 1);
+            if(cmdIdx >= (cmds.length - 1)) 
+                return (this.index + 1);
+            else {
+                cmdIdx += 1;
+                return this.index;
+            }
+        },
+        critical: function() {
+            if(typeof cmd === 'string') return true;
+            if(typeof cmdIdx !== 'number') cmdIdx = 0;
+            if(typeof cmds === 'undefined') return true;
+            if(typeof cmds[cmdIdx].critical === 'boolean')
+                return cmds[cmdIdx].critical;
+            else return true;            
+        },
+        async: function() {
+            if(typeof cmd === 'string') return false;
+            if(typeof cmdIdx !== 'number') cmdIdx = 0;
+            if(typeof cmds === 'undefined') return false;
+            if(typeof cmds[cmdIdx].async === 'boolean')
+                return cmds[cmdIdx].async;
+            else return false;            
+        },
+        timeout: function() {
+            if(typeof cmd === 'string') return 1800;
+            if(typeof cmdIdx !== 'number') cmdIdx = 0;
+            if(typeof cmds === 'undefined') return 1800;
+            if(typeof cmds[cmdIdx].timeout === 'number') 
+                return cmds[cmdIdx].timeout;
+            else return 1800;
+        },
+        judgeSuccess: function(exitStatus) {
+            if(typeof cmd === 'string') return (exitStatus === 0); 
+            if(typeof cmdIdx !== 'number') cmdIdx = 0;
+            if(typeof cmds === 'undefined') return false;
+            if(typeof cmds[cmdIdx].judgeSuccess === 'function') {
+                try { return cmds[cmdIdx].judgeSuccess(exitStatus); }
+                catch(err) { 
+                    __Util.log(err.message + '\n' + err.stack + '\n');
+                    return false;
+                }
+            } else return (exitStatus === 0); 
+            
+        },
+    },
+];
+
+declareOperation(expects);

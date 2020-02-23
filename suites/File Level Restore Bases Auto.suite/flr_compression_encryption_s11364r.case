@@ -1,0 +1,49 @@
+//////////////////////////////////////////////////////
+//////////////////////PARAMETERS//////////////////////
+//////////////////////////////////////////////////////
+var origFile = '/tmp/orig_file',
+    saveFile = origFile + '.before_restore',
+    nfsPath = 'luvyu01-nfsvr:/ns',
+    serverHost = 'luvyu01-s11364r',
+    prepareFile = [
+        'time dd if=/dev/urandom of="/tmp/orig_file" bs=1M count=100',
+        'cp -p "' + origFile + '" "' + saveFile + '"',
+    ],
+    eptAlgo = (['AES128', 'AES192', 'AES256'])[Math.floor(Math.random() * 3)],
+    //compress = Math.ceil(Math.random() * 2);
+    compress = 1,
+    bscript = {
+        jobname: 'FLR Auto: Backup',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        encryptalgo: eptAlgo,
+        encryptpasswd: 'cnbjrdqa2#',
+        compression: compress,
+        excludefiles: '/home:/root:/lib:/var:/usr:/opt'
+    },
+    rscript = {
+        jobname: 'FLR Auto: Restore',
+        targethost: serverHost,
+        targetuser: 'root',
+        targetpasswd: 'cnbjrdqa2#',
+        sessionlocation: nfsPath,
+        encryptalgo: eptAlgo,
+        encryptpasswd: 'cnbjrdqa2#',
+        compression: compress,
+        restoretargetdir: '/',
+        restoretooriginal: '1',
+        restorefile: origFile,
+    },
+    server = $({ host: serverHost, username: 'root', password: 'cnbjrdqa2#' });
+
+//////////////////////////////////////////////////////
+////////////////////////CASE//////////////////////////
+//////////////////////////////////////////////////////
+server.exec({ cmds: prepareFile })
+      .backup({ incremental: bscript })
+      .exec({ cmds: ['time dd if=/dev/urandom of="/tmp/orig_file" bs=1M count=100'] })
+      .restore({ file: rscript })
+      .stat({ files: [origFile, saveFile], to: 'Compare' });
+compare([ [serverHost, origFile], [serverHost, saveFile] ]);

@@ -1,0 +1,12 @@
+var U = require('./lib/models/User');
+var me = new U('luvyu01');
+me.id(function(err, id){console.log(id + ' ' + err)});
+me.name.get(function(err, name){console.log(name + ' ' + err)});
+me.name.set('Lu, Yu', function(err){console.log('done ' + err)});
+me.name(function(err, name){console.log(name + ' ' + err)});
+
+var U = require('./lib/models/User')
+var u = new U('luvyu01')
+u.trigger('testTrigger',function(){console.log(arguments)})
+u.triggers(function(){console.log(arguments)})
+u.newTrigger('testTrigger', function(){console.log(arguments)})

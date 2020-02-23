@@ -7,7 +7,7 @@
   },
   "main": "cre.js",
   "dependencies": {
-    "express": "~3.1.0",
+    "express": "~4.17.1",
     "socket.io": "~0.9.13",
     "archiver": "~0.4.10",
     "ssh2": "~0.2.20",

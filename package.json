@@ -29,6 +29,6 @@
   },
   "devDependencies": {
     "livereload": "~0.3.2",
-    "bower": "~1.2.6"
+    "bower": "~1.8.8"
   }
 }
